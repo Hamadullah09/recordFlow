@@ -1,0 +1,44 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Columns.IndexModel
+@{
+    ViewData["Title"] = "Dashboard columns";
+    string YesNo(bool v) => v ? "Yes" : "No";
+}
+<h1 class="h4 mb-1">Dashboard columns</h1>
+<p class="text-muted mb-3">
+    Six admin-managed columns appear on every user's dashboard after Date, Time, Contact ID and Response.
+    A column is shown only when it is <strong>active</strong>, <strong>visible</strong> and has a value for at least one record in the user's
+    current working data — empty columns are hidden automatically. Required columns are always shown so users can fill them in.
+</p>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 data-table responsive-table">
+            <thead>
+                <tr><th>Slot</th><th>Display label</th><th>Name</th><th>Type</th><th>Value source</th><th>Active</th><th>Visible</th><th>Required</th><th>User-editable</th><th>Order</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Columns)
+                {
+                    <tr class="@(c.IsActive ? "" : "text-muted")">
+                        <td data-label="Slot"><span class="slot-badge">@c.Slot</span></td>
+                        <td data-label="Display label" class="fw-semibold">@c.DisplayLabel</td>
+                        <td data-label="Name"><code>@c.Name</code></td>
+                        <td data-label="Type">@c.FieldType.Name()</td>
+                        <td data-label="Value source">
+                            @if (!string.IsNullOrWhiteSpace(c.SourceField)) { <span>CSV / form: <strong>@c.SourceField</strong></span> }
+                            @if (!string.IsNullOrWhiteSpace(c.DefaultValue)) { <span class="d-block small">Default: @c.DefaultValue</span> }
+                            @if (string.IsNullOrWhiteSpace(c.SourceField) && string.IsNullOrWhiteSpace(c.DefaultValue)) { <span>@(c.AllowUserEdit ? "Entered by users" : "—")</span> }
+                        </td>
+                        <td data-label="Active">@YesNo(c.IsActive)</td>
+                        <td data-label="Visible">@YesNo(c.IsVisible)</td>
+                        <td data-label="Required">@YesNo(c.IsRequired)</td>
+                        <td data-label="User-editable">@YesNo(c.AllowUserEdit)</td>
+                        <td data-label="Order">@c.DisplayOrder</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-slot="@c.Slot">Configure</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

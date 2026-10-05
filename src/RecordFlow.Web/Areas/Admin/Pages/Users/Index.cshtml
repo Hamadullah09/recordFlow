@@ -1,0 +1,68 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Users.IndexModel
+@{
+    ViewData["Title"] = "Users";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Users</h1>
+    <a class="btn btn-primary" asp-page="./Edit">+ Create user</a>
+</div>
+
+<form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label small" for="q">Search</label>
+            <input class="form-control" id="q" name="q" value="@Model.Q" placeholder="Name, User ID, email or company" />
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small" for="status">Status</label>
+            <select class="form-select" id="status" name="status">
+                <option value="">All</option>
+                <option value="active" selected="@(Model.Status == "active")">Active</option>
+                <option value="disabled" selected="@(Model.Status == "disabled")">Disabled</option>
+                <option value="locked" selected="@(Model.Status == "locked")">Locked out</option>
+                <option value="unconfirmed" selected="@(Model.Status == "unconfirmed")">Email not confirmed</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small" for="role">Role</label>
+            <select class="form-select" id="role" name="role">
+                <option value="">All</option>
+                @foreach (var r in Roles.All) { <option value="@r" selected="@(Model.Role == r)">@r</option> }
+            </select>
+        </div>
+        <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filter</button></div>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 data-table responsive-table">
+            <thead>
+                <tr><th>Name</th><th>User ID</th><th>Email</th><th>Company</th><th>Roles</th><th>Status</th><th>Last sign-in</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model.Users)
+                {
+                    <tr>
+                        <td data-label="Name" class="fw-semibold">@u.FullName</td>
+                        <td data-label="User ID">@u.UserName</td>
+                        <td data-label="Email">@u.Email</td>
+                        <td data-label="Company">@(u.Company ?? "—")</td>
+                        <td data-label="Roles">@foreach (var r in u.Roles) { <span class="badge @(r == Roles.Administrator ? "text-bg-dark" : "text-bg-light border") me-1">@r</span> }</td>
+                        <td data-label="Status">
+                            @if (u.IsDisabled) { <span class="badge text-bg-danger">Disabled</span> }
+                            else if (Model.IsLocked(u)) { <span class="badge text-bg-warning">Locked out</span> }
+                            else if (!u.EmailConfirmed) { <span class="badge text-bg-light border">Unconfirmed</span> }
+                            else { <span class="badge text-bg-success">Active</span> }
+                        </td>
+                        <td data-label="Last sign-in">@Time.DateAndTime(u.LastLoginAtUtc)</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-id="@u.Id">Edit</a></td>
+                    </tr>
+                }
+                @if (Model.Users.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">No users found.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

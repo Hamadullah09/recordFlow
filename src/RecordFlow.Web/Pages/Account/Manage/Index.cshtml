@@ -1,0 +1,46 @@
+@page
+@model RecordFlow.Web.Pages.Account.Manage.IndexModel
+@{
+    ViewData["Title"] = "Profile";
+}
+<div class="narrow-page mx-auto">
+    <h1 class="h3 mb-4">Your profile</h1>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">User ID</label>
+                        <input class="form-control form-control-lg" value="@Model.UserIdDisplay" disabled />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email address</label>
+                        <input class="form-control form-control-lg" value="@Model.Email" disabled />
+                        <div class="form-text">Contact an administrator to change your email address.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.FullName" class="form-label"></label>
+                        <input asp-for="Input.FullName" class="form-control form-control-lg" autocomplete="name" />
+                        <span asp-validation-for="Input.FullName" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.CompanyName" class="form-label"></label>
+                        <input asp-for="Input.CompanyName" class="form-control form-control-lg" autocomplete="organization" />
+                        <span asp-validation-for="Input.CompanyName" class="invalid-feedback d-block"></span>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-4">
+                    <span class="small text-muted">Member since @Time.Date(Model.CreatedAtUtc)</span>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-secondary btn-lg" asp-page="./ChangePassword">Change password</a>
+                        <button type="submit" class="btn btn-primary btn-lg">Save changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

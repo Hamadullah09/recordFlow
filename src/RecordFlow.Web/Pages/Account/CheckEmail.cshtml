@@ -1,0 +1,25 @@
+@page
+@inject IWebHostEnvironment Env
+@{
+    ViewData["Title"] = "Check your email";
+    var reason = Request.Query["reason"].ToString();
+    var message = reason switch
+    {
+        "reset" => "If an account exists for that email address, we've sent a link to reset your password. The link expires in 3 hours.",
+        "resend" => "If that account still needs to be confirmed, we've sent a new confirmation link.",
+        _ => "We've sent a confirmation link to your email address. Click the link to activate your account.",
+    };
+}
+<div class="text-center">
+    <div class="icon-circle mx-auto mb-3" aria-hidden="true">&#9993;</div>
+    <h1 class="h3 mb-3">Check your email</h1>
+    <p class="text-muted">@message</p>
+    <p class="small text-muted">Don't see it? Check your spam or junk folder.</p>
+    @if (Env.IsDevelopment())
+    {
+        <div class="alert alert-warning small text-start mt-4">
+            <strong>Development mode:</strong> emails are not sent. Open the <a href="/dev/mailbox" target="_blank">development mailbox</a> to view them.
+        </div>
+    }
+    <a class="btn btn-outline-primary mt-3" asp-page="./Login">Back to sign in</a>
+</div>

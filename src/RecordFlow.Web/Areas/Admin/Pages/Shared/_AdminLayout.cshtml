@@ -1,0 +1,70 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.Extensions.Options.IOptions<RecordFlow.Core.Abstractions.AppOptions> AppOptions
+@{
+    var path = Context.Request.Path.Value ?? "";
+    string Active(string prefix, bool exact = false) =>
+        (exact ? string.Equals(path.TrimEnd('/'), prefix, StringComparison.OrdinalIgnoreCase) : path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@ViewData["Title"] · Admin · @AppOptions.Value.Name</title>
+    <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
+    <div class="admin-shell d-flex">
+        <aside class="admin-sidebar d-flex flex-column p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <a class="brand d-flex align-items-center gap-2 text-decoration-none fw-bold py-2" asp-area="Admin" asp-page="/Index">
+                    <partial name="_Logo" /> Admin Portal
+                </a>
+                <button class="btn btn-sm btn-outline-light d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false">Menu</button>
+            </div>
+            <nav id="adminNav" class="collapse d-lg-block mt-2" aria-label="Admin navigation">
+                <ul class="nav flex-column gap-1">
+                    <li class="section-label">Overview</li>
+                    <li><a class="nav-link @Active("/Admin", exact: true)" asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+                    <li class="section-label">Management</li>
+                    <li><a class="nav-link @Active("/Admin/Users")" asp-area="Admin" asp-page="/Users/Index">Users</a></li>
+                    <li><a class="nav-link @Active("/Admin/Companies")" asp-area="Admin" asp-page="/Companies/Index">Companies</a></li>
+                    <li class="section-label">Configuration</li>
+                    <li><a class="nav-link @Active("/Admin/Columns")" asp-area="Admin" asp-page="/Columns/Index">Dashboard columns</a></li>
+                    <li><a class="nav-link @Active("/Admin/FormFields")" asp-area="Admin" asp-page="/FormFields/Index">Form fields</a></li>
+                    <li><a class="nav-link @Active("/Admin/Settings")" asp-area="Admin" asp-page="/Settings/Index">Pricing &amp; settings</a></li>
+                    <li class="section-label">Data</li>
+                    <li><a class="nav-link @Active("/Admin/Records")" asp-area="Admin" asp-page="/Records/Index">Finalized records</a></li>
+                    <li><a class="nav-link @Active("/Admin/Payments")" asp-area="Admin" asp-page="/Payments/Index">Payments &amp; orders</a></li>
+                    <li><a class="nav-link @Active("/Admin/AuditLogs")" asp-area="Admin" asp-page="/AuditLogs/Index">Audit log</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <div class="flex-grow-1 d-flex flex-column min-w-0">
+            <header class="admin-topbar d-flex align-items-center justify-content-between px-3 px-lg-4 gap-2">
+                <span class="fw-semibold text-truncate">@ViewData["Title"]</span>
+                <div class="d-flex align-items-center gap-2">
+                    <a class="btn btn-sm btn-light" asp-area="" asp-page="/Dashboard">Back to portal</a>
+                    <span class="small text-muted d-none d-md-inline">@User.Identity!.Name</span>
+                    <form method="post" asp-area="" asp-page="/Account/Logout" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Sign out</button>
+                    </form>
+                </div>
+            </header>
+            <main id="main" class="p-3 p-lg-4 flex-grow-1">
+                <partial name="_Alerts" />
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

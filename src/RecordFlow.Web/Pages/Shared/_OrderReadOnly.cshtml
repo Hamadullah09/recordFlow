@@ -1,0 +1,21 @@
+@model RecordFlow.Core.Entities.Order
+@* Read-only payment/order details. Never includes card numbers or security codes – those never reach this application. *@
+<div class="card border-0 shadow-sm readonly-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0">Order &amp; billing <span class="text-muted fw-normal">(read-only)</span></h2>
+        <span class="badge rounded-pill @(Model.IsPaid ? "text-bg-success" : "text-bg-warning")">@Model.Status.Name()</span>
+    </div>
+    <div class="card-body">
+        <dl class="row small mb-0 kv">
+            <dt class="col-5">Order number</dt><dd class="col-7 font-monospace">@Model.OrderNumber</dd>
+            <dt class="col-5">Service</dt><dd class="col-7">@Model.ServiceName</dd>
+            <dt class="col-5">Amount</dt><dd class="col-7 fw-semibold">@Model.Total.ToString("C")</dd>
+            <dt class="col-5">Billing name</dt><dd class="col-7">@Model.BillingName</dd>
+            <dt class="col-5">Billing address</dt>
+            <dd class="col-7">
+                @Model.BillingAddressLine1@if (!string.IsNullOrEmpty(Model.BillingAddressLine2)) {<br />@Model.BillingAddressLine2}<br />@Model.BillingCityStateZip
+            </dd>
+            <dt class="col-5">Payment status</dt><dd class="col-7">@Model.Status.Name()@(Model.PaidAtUtc is null ? "" : $" · {Time.Date(Model.PaidAtUtc)}")</dd>
+        </dl>
+    </div>
+</div>

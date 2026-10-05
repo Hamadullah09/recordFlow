@@ -1,0 +1,40 @@
+@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+<h1 class="h3 mb-1">Sign in</h1>
+<p class="text-muted mb-4">New here? <a asp-page="./Register">Create an account</a></p>
+
+<form method="post" novalidate>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    @if (Model.ShowResendLink)
+    {
+        <p class="small"><a asp-page="./ResendConfirmation">Resend the confirmation email</a></p>
+    }
+
+    <div class="mb-3">
+        <label asp-for="Input.Login" class="form-label"></label>
+        <input asp-for="Input.Login" class="form-control form-control-lg" autocomplete="username" autofocus />
+        <span asp-validation-for="Input.Login" class="invalid-feedback d-block"></span>
+    </div>
+    <div class="mb-2">
+        <div class="d-flex justify-content-between">
+            <label asp-for="Input.Password" class="form-label"></label>
+            <a class="small" asp-page="./ForgotPassword">Forgot password?</a>
+        </div>
+        <input asp-for="Input.Password" class="form-control form-control-lg" autocomplete="current-password" />
+        <span asp-validation-for="Input.Password" class="invalid-feedback d-block"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Sign in</button>
+</form>
+
+<p class="small text-muted mt-4 mb-0 text-center">
+    Didn't get the confirmation email? <a asp-page="./ResendConfirmation">Resend it</a>
+</p>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

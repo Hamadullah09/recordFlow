@@ -1,0 +1,104 @@
+@page "/records/{key}/verify"
+@model RecordFlow.Web.Pages.Records.VerifyModel
+@{
+    ViewData["Title"] = "Verify details";
+    var r = Model.Record;
+    var store = r.StoreName ?? $"Contact ID {r.ContactId}";
+    string Show(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v;
+}
+<partial name="_RecordStepper" model="new StepperModel(r, 5)" />
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <a class="small text-decoration-none" asp-page="/Records/Form" asp-route-key="@r.Key">&larr; Back to form</a>
+        <h1 class="h3 mt-2 mb-1">Verify details</h1>
+        <p class="text-muted mb-0">Review everything for <strong>@store</strong> before you confirm. After confirmation the record is closed.</p>
+    </div>
+    <a class="btn btn-outline-primary btn-lg" asp-page="/Records/Form" asp-route-key="@r.Key">Edit information</a>
+</div>
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+@if (r.RecipientSubmittedAtUtc is not null)
+{
+    <div class="alert alert-info">
+        <strong>@(r.RecipientName ?? "The recipient")</strong> submitted the form on @Time.DateAndTime(r.RecipientSubmittedAtUtc)
+        and updated @Model.RecipientChanges field@(Model.RecipientChanges == 1 ? "" : "s") (highlighted below).
+    </div>
+}
+else if (r.Status == RecordStatus.SharedPending)
+{
+    <div class="alert alert-warning">The recipient hasn't submitted the shared form yet. If you confirm now, the shared link will stop working.</div>
+}
+@if (Model.MissingRequired.Count > 0)
+{
+    <div class="alert alert-danger">
+        <strong>Required information is missing:</strong> @string.Join(", ", Model.MissingRequired).
+        <a asp-page="/Records/Form" asp-route-key="@r.Key">Complete it now</a> or share the form so the recipient can add it.
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <section class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Record</h2></div>
+            <div class="card-body">
+                <dl class="row small mb-0 kv">
+                    <dt class="col-sm-4">Contact ID</dt><dd class="col-sm-8 fw-semibold">@r.ContactId</dd>
+                    <dt class="col-sm-4">Created</dt><dd class="col-sm-8">@Time.DateAndTime(r.CreatedAtUtc)</dd>
+                    <dt class="col-sm-4">Response</dt><dd class="col-sm-8">@(r.Response switch { "Y" => "Y – Yes", "N" => "N – No", _ => "—" })</dd>
+                    @foreach (var (label, value) in Model.Columns)
+                    {
+                        <dt class="col-sm-4">@label</dt><dd class="col-sm-8">@value</dd>
+                    }
+                </dl>
+            </div>
+        </section>
+
+        @foreach (var grp in Model.Sections)
+        {
+            <section class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white"><h2 class="h6 mb-0">@grp.Key.Name()</h2></div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 verify-table responsive-table">
+                        <thead>
+                            <tr><th scope="col">Field</th><th scope="col">Original CSV</th><th scope="col">Final value</th><th scope="col">Entered by</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var f in grp)
+                            {
+                                <tr class="@(f.Source == FieldSource.Recipient ? "row-recipient" : f.Source == FieldSource.User ? "row-user" : "") @(f.IsRequired && f.IsMissing ? "row-missing" : "")">
+                                    <th scope="row" data-label="Field">@f.Label@(f.IsRequired ? " *" : "")</th>
+                                    <td data-label="Original CSV" class="text-muted">@Show(f.CsvValue)</td>
+                                    <td data-label="Final value" class="fw-semibold">@Show(f.Value)</td>
+                                    <td data-label="Entered by"><partial name="_SourceBadge" model="f" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </div>
+
+    <div class="col-lg-4">
+        <div class="sticky-lg-top d-grid gap-3 verify-aside">
+            @if (Model.Order is not null)
+            {
+                <partial name="_OrderReadOnly" model="Model.Order" />
+            }
+            <form method="post" class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="h6">Confirm</h2>
+                    <div class="form-check my-3">
+                        <input class="form-check-input" type="checkbox" asp-for="Confirmed" id="confirmCheck" data-enables="#confirmButton" />
+                        <label class="form-check-label" for="confirmCheck">I have reviewed this information and confirm it is correct.</label>
+                    </div>
+                    <span asp-validation-for="Confirmed" class="invalid-feedback d-block mb-2"></span>
+                    <button type="submit" class="btn btn-success btn-lg w-100" id="confirmButton" disabled data-locked="@(Model.MissingRequired.Count > 0 ? "true" : null)">Confirm details</button>
+                    <a class="btn btn-link w-100 mt-2" asp-page="/Records/Form" asp-route-key="@r.Key">Go back and edit</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

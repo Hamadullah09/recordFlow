@@ -1,0 +1,228 @@
+@page "/dashboard"
+@model DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var ws = Model.Workspace;
+    var firstName = User.GetDisplayName().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "there";
+    string IdleText(TimeSpan t) => t.TotalMinutes >= 120 ? $"{t.TotalHours:0.#} hours" : $"{t.TotalMinutes:0} minutes";
+}
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-muted mb-0">Welcome back, @firstName.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-lg px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        <span aria-hidden="true">&#8679;</span> Upload CSV
+    </button>
+</div>
+
+@if (ws is null)
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body empty-state text-center py-5 px-4">
+            <div class="icon-circle icon-primary mx-auto mb-3" aria-hidden="true">&#128196;</div>
+            <h2 class="h4">Upload a CSV to get started</h2>
+            <p class="text-muted mx-auto mb-4 empty-text">
+                Your file is processed for this working session only. It is never saved to our database, and it's
+                removed automatically when you sign out or after @IdleText(Model.IdleTimeout) of inactivity.
+            </p>
+            <button type="button" class="btn btn-primary btn-lg px-5" data-bs-toggle="modal" data-bs-target="#uploadModal">Upload CSV</button>
+            <p class="small text-muted mt-4 mb-0">
+                Typical columns: Contact ID, Store ID, Store Name, Address Line 1, ZIP Code, Store Phone Number, Owner Name,
+                Fire Station Number, Alarm Service ID … Missing columns are fine.
+            </p>
+        </div>
+    </div>
+
+    <ol class="workflow-strip list-unstyled row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mt-4">
+        <li class="col"><div class="wf-step"><span>1</span>Upload CSV</div></li>
+        <li class="col"><div class="wf-step"><span>2</span>Select record</div></li>
+        <li class="col"><div class="wf-step"><span>3</span>Checkout</div></li>
+        <li class="col"><div class="wf-step"><span>4</span>Share form</div></li>
+        <li class="col"><div class="wf-step"><span>5</span>Verify</div></li>
+        <li class="col"><div class="wf-step"><span>6</span>Receipt</div></li>
+    </ol>
+}
+else
+{
+    <div class="card border-0 shadow-sm mb-3 session-bar">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="icon-circle icon-primary icon-sm" aria-hidden="true">&#128196;</div>
+            <div class="flex-grow-1 min-w-0">
+                <div class="fw-semibold text-truncate">@ws.FileName</div>
+                <div class="small text-muted">
+                    @Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s") · uploaded @Time.DateAndTime(ws.CreatedAtUtc) ·
+                    temporary session, ends after @IdleText(Model.IdleTimeout) of inactivity
+                </div>
+            </div>
+            <div class="text-md-end">
+                <div class="small text-muted mb-1">@Model.CompletedCount of @Model.TotalCount completed</div>
+                <div class="progress session-progress" role="progressbar" aria-label="Completed records" aria-valuenow="@Model.CompletedCount" aria-valuemin="0" aria-valuemax="@Model.TotalCount">
+                    <div class="progress-bar bg-success" data-progress="@(Model.TotalCount == 0 ? 0 : Model.CompletedCount * 100 / Model.TotalCount)"></div>
+                </div>
+            </div>
+            <form method="post" asp-page-handler="EndSession" data-confirm="End this working session? All temporary CSV data and unfinished records will be deleted. Completed records and receipts are kept.">
+                <button type="submit" class="btn btn-outline-danger">End session</button>
+            </form>
+        </div>
+    </div>
+
+    @if (ws.Warnings.Count > 0)
+    {
+        <div class="alert alert-warning" role="status">
+            <strong>Imported with @ws.Warnings.Count note@(ws.Warnings.Count == 1 ? "" : "s"):</strong>
+            <ul class="mb-0 mt-1 ps-3">
+                @foreach (var w in ws.Warnings) { <li>@w</li> }
+            </ul>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-3 pb-0 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Records</h2>
+            <form method="get" class="search-form d-flex gap-2" role="search">
+                <label for="q" class="visually-hidden">Search records</label>
+                <input id="q" name="q" value="@Model.Query" class="form-control" type="search" placeholder="Search Contact ID or store…" />
+                <button class="btn btn-outline-secondary" type="submit">Search</button>
+            </form>
+        </div>
+        <div class="card-body px-0 pb-0">
+            @if (Model.Records.Count == 0)
+            {
+                <p class="text-muted text-center py-4 mb-0">No records match “@Model.Query”. <a asp-page="/Dashboard">Clear search</a></p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 data-table responsive-table" aria-describedby="recordsCaption">
+                        <caption id="recordsCaption" class="visually-hidden">Records from @ws.FileName</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">Time</th>
+                                <th scope="col">Contact ID</th>
+                                <th scope="col">Response</th>
+                                @foreach (var c in Model.VisibleColumns)
+                                {
+                                    <th scope="col">@c.DisplayLabel@(c.IsRequired ? " *" : "")</th>
+                                }
+                                <th scope="col">Status</th>
+                                <th scope="col">Close Time</th>
+                                <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model.Records)
+                            {
+                                <tr>
+                                    <td data-label="Date">@Time.Date(r.CreatedAtUtc)</td>
+                                    <td data-label="Time">@Time.Time(r.CreatedAtUtc)</td>
+                                    <td data-label="Contact ID" class="fw-semibold">
+                                        @r.ContactId
+                                        @if (r.ContactIdGenerated) { <span class="badge text-bg-light border ms-1" title="No Contact ID in the CSV; a temporary ID was assigned">temp</span> }
+                                    </td>
+                                    <td data-label="Response">
+                                        <select class="form-select form-select-sm response-select js-response" data-key="@r.Key" aria-label="Response for @r.ContactId" disabled="@r.IsClosed">
+                                            <option value="" selected="@(r.Response is null)">—</option>
+                                            <option value="Y" selected="@(r.Response == "Y")">Y – Yes</option>
+                                            <option value="N" selected="@(r.Response == "N")">N – No</option>
+                                        </select>
+                                    </td>
+                                    @foreach (var c in Model.VisibleColumns)
+                                    {
+                                        var value = Model.Resolver!.Resolve(c, r);
+                                        <td data-label="@c.DisplayLabel">
+                                            @if (c.AllowUserEdit && !r.IsClosed)
+                                            {
+                                                @if (c.FieldType is FieldType.Select or FieldType.YesNo)
+                                                {
+                                                    var options = c.FieldType == FieldType.YesNo ? new[] { "Y", "N" } : c.OptionList.ToArray();
+                                                    <select class="form-select form-select-sm js-admin-col" data-key="@r.Key" data-slot="@c.Slot" aria-label="@c.DisplayLabel for @r.ContactId">
+                                                        <option value="">—</option>
+                                                        @foreach (var o in options)
+                                                        {
+                                                            <option value="@o" selected="@(string.Equals(o, value, StringComparison.OrdinalIgnoreCase))">@o</option>
+                                                        }
+                                                    </select>
+                                                }
+                                                else
+                                                {
+                                                    <input class="form-control form-control-sm js-admin-col" data-key="@r.Key" data-slot="@c.Slot" value="@value" maxlength="250" aria-label="@c.DisplayLabel for @r.ContactId" />
+                                                }
+                                            }
+                                            else
+                                            {
+                                                @(value ?? "—")
+                                            }
+                                        </td>
+                                    }
+                                    <td data-label="Status"><span class="badge rounded-pill @DashboardModel.StatusBadgeClass(r.Status)">@r.Status.Name()</span></td>
+                                    <td data-label="Close Time">@(r.ClosedAtUtc is null ? "—" : $"{Time.Date(r.ClosedAtUtc)} {Time.Time(r.ClosedAtUtc)}")</td>
+                                    <td class="text-end actions-cell">
+                                        @if (r.IsClosed && r.OrderPublicId is Guid orderId)
+                                        {
+                                            <a class="btn btn-sm btn-outline-success" asp-page="/Receipts/Details" asp-route-id="@orderId">Receipt</a>
+                                        }
+                                        else
+                                        {
+                                            <a class="btn btn-sm @(r.Status == RecordStatus.Imported ? "btn-primary" : "btn-outline-primary") px-3" asp-page="/Records/Open" asp-route-key="@r.Key">@DashboardModel.ActionLabel(r)</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        @if (Model.TotalPages > 1)
+        {
+            <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small text-muted">Showing page @Model.PageNumber of @Model.TotalPages (@Model.FilteredCount records)</span>
+                <nav aria-label="Records pages">
+                    <ul class="pagination mb-0">
+                        <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")"><a class="page-link" asp-route-p="@(Model.PageNumber - 1)" asp-route-q="@Model.Query">Previous</a></li>
+                        <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")"><a class="page-link" asp-route-p="@(Model.PageNumber + 1)" asp-route-q="@Model.Query">Next</a></li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+    @if (Model.VisibleColumns.Any(c => c.IsRequired))
+    {
+        <p class="small text-muted mt-2">* Required before checkout.</p>
+    }
+}
+
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" asp-page="/Csv/Upload" enctype="multipart/form-data" data-max-bytes="@Model.MaxUploadBytes" id="uploadForm">
+            <div class="modal-header border-0 pb-0">
+                <h2 class="modal-title h5" id="uploadModalTitle">Upload CSV</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (ws is not null)
+                {
+                    <div class="alert alert-warning small">Uploading a new file replaces your current working session and removes its unfinished records.</div>
+                }
+                <label for="csvFile" class="dropzone d-block text-center p-4 mb-3">
+                    <span class="d-block fs-2" aria-hidden="true">&#8679;</span>
+                    <span class="d-block fw-semibold">Choose a .csv file</span>
+                    <span class="d-block small text-muted">Up to @Model.MaxUploadMb MB · first row must contain column names</span>
+                    <span class="d-block small mt-2 file-name text-primary" id="csvFileName"></span>
+                </label>
+                <input class="visually-hidden" type="file" id="csvFile" name="csvFile" accept=".csv,text/csv" required />
+                <div class="invalid-feedback d-block" id="csvFileError"></div>
+                <p class="small text-muted mb-0">
+                    <span aria-hidden="true">&#128274;</span> Your file is processed in memory for this session only. It is never stored permanently or shared with other users.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4" id="uploadSubmit">Upload &amp; process</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,114 @@
+@page "{id?}"
+@model RecordFlow.Web.Areas.Admin.Pages.Users.EditModel
+@{
+    var creating = Model.Existing is null && Model.Id is null;
+    ViewData["Title"] = creating ? "Create user" : "Edit user";
+    var u = Model.Existing;
+}
+<a class="small text-decoration-none" asp-page="./Index">&larr; All users</a>
+<h1 class="h4 mt-2 mb-3">@ViewData["Title"]</h1>
+
+<div class="row g-4">
+    <div class="col-xl-8">
+        <form method="post" class="card border-0 shadow-sm" novalidate>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.FullName" class="form-label"></label>
+                        <input asp-for="Input.FullName" class="form-control" />
+                        <span asp-validation-for="Input.FullName" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.UserId" class="form-label"></label>
+                        <input asp-for="Input.UserId" class="form-control" />
+                        <span asp-validation-for="Input.UserId" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.Email" class="form-label"></label>
+                        <input asp-for="Input.Email" class="form-control" />
+                        <span asp-validation-for="Input.Email" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.CompanyId" class="form-label"></label>
+                        <select asp-for="Input.CompanyId" asp-items="Model.Companies" class="form-select">
+                            <option value="">No company</option>
+                        </select>
+                        <span asp-validation-for="Input.CompanyId" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-12">
+                        <span class="form-label d-block">Roles</span>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" asp-for="Input.RoleUser" />
+                            <label class="form-check-label" asp-for="Input.RoleUser">User</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" asp-for="Input.RoleAdministrator" />
+                            <label class="form-check-label" asp-for="Input.RoleAdministrator">Administrator</label>
+                        </div>
+                        <div class="form-text">Administrators can open this Admin Portal. Users can use the CSV workflow.</div>
+                    </div>
+                </div>
+                @if (creating)
+                {
+                    <div class="alert alert-info small mt-3 mb-0">The new user receives an email with a secure link to choose their own password. Administrators never see or set user passwords.</div>
+                }
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-end gap-2">
+                <a class="btn btn-light" asp-page="./Index">Cancel</a>
+                <button type="submit" class="btn btn-primary">@(creating ? "Create user" : "Save changes")</button>
+            </div>
+        </form>
+    </div>
+
+    @if (u is not null)
+    {
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white"><h2 class="h6 mb-0">Account</h2></div>
+                <div class="card-body small">
+                    <dl class="row kv mb-0">
+                        <dt class="col-6">Status</dt>
+                        <dd class="col-6">@(u.IsDisabled ? "Disabled" : Model.IsLockedOut ? "Locked out" : "Active")</dd>
+                        <dt class="col-6">Email confirmed</dt><dd class="col-6">@(u.EmailConfirmed ? "Yes" : "No")</dd>
+                        <dt class="col-6">Failed sign-ins</dt><dd class="col-6">@u.AccessFailedCount</dd>
+                        <dt class="col-6">Last sign-in</dt><dd class="col-6">@Time.DateAndTime(u.LastLoginAtUtc)</dd>
+                        <dt class="col-6">Created</dt><dd class="col-6">@Time.DateAndTime(u.CreatedAtUtc)</dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white"><h2 class="h6 mb-0">Actions</h2></div>
+                <div class="card-body d-grid gap-2">
+                    <form method="post" asp-page-handler="SendReset" class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">Send password link</button>
+                    </form>
+                    @if (Model.IsLockedOut)
+                    {
+                        <form method="post" asp-page-handler="Unlock" class="d-grid">
+                            <button type="submit" class="btn btn-outline-secondary">Unlock account</button>
+                        </form>
+                    }
+                    @if (!Model.IsSelf)
+                    {
+                        @if (u.IsDisabled)
+                        {
+                            <form method="post" asp-page-handler="Enable" class="d-grid">
+                                <button type="submit" class="btn btn-success">Enable account</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="Disable" class="d-grid" data-confirm="Disable this account? The user will be signed out and their temporary workspace deleted.">
+                                <button type="submit" class="btn btn-outline-danger">Disable account</button>
+                            </form>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

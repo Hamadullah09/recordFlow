@@ -1,0 +1,58 @@
+@page "{id:guid}"
+@model RecordFlow.Web.Areas.Admin.Pages.Payments.DetailsModel
+@{
+    var o = Model.Order;
+    ViewData["Title"] = $"Order {o.OrderNumber}";
+}
+<a class="small text-decoration-none" asp-page="./Index">&larr; All orders</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
+    <h1 class="h4 mb-0 font-monospace">@o.OrderNumber</h1>
+    @if (o.Status is OrderStatus.Pending or OrderStatus.Processing)
+    {
+        <form method="post" asp-page-handler="Refresh" asp-route-id="@o.PublicId"><button class="btn btn-outline-primary" type="submit">Refresh status from provider</button></form>
+    }
+</div>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Payment</h2></div>
+            <div class="card-body">
+                <dl class="row small kv mb-0">
+                    <dt class="col-5">Payment status</dt><dd class="col-7"><span class="badge rounded-pill @RecordFlow.Web.Areas.Admin.Pages.Payments.IndexModel.BadgeClass(o.Status)">@o.Status.Name()</span></dd>
+                    <dt class="col-5">Order status</dt><dd class="col-7">@(o.FinalizedRecord is not null ? "Completed" : o.IsPaid ? "Paid – awaiting record confirmation" : "Open")</dd>
+                    <dt class="col-5">Provider</dt><dd class="col-7">@o.Provider</dd>
+                    <dt class="col-5">Transaction ID</dt><dd class="col-7 font-monospace text-break">@(o.ProviderPaymentId ?? "—")</dd>
+                    <dt class="col-5">Session ID</dt><dd class="col-7 font-monospace text-break small">@(o.ProviderSessionId ?? "—")</dd>
+                    <dt class="col-5">Method</dt><dd class="col-7 text-capitalize">@(o.CardBrand is null ? o.PaymentMethod.Name() : $"{o.CardBrand} •••• {o.CardLast4}")</dd>
+                    <dt class="col-5">Subtotal</dt><dd class="col-7">@o.Subtotal.ToString("C")</dd>
+                    <dt class="col-5">Tax</dt><dd class="col-7">@o.Tax.ToString("C")</dd>
+                    <dt class="col-5">Fee</dt><dd class="col-7">@o.Fee.ToString("C")</dd>
+                    <dt class="col-5">Total</dt><dd class="col-7 fw-bold">@o.Total.ToString("C")</dd>
+                    <dt class="col-5">Created</dt><dd class="col-7">@Time.DateAndTime(o.CreatedAtUtc)</dd>
+                    <dt class="col-5">Payment date</dt><dd class="col-7">@Time.DateAndTime(o.PaidAtUtc)</dd>
+                    @if (o.FailureReason is not null) { <dt class="col-5">Note</dt><dd class="col-7 text-danger">@o.FailureReason</dd> }
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Customer</h2></div>
+            <div class="card-body">
+                <dl class="row small kv mb-0">
+                    <dt class="col-5">Account</dt><dd class="col-7">@(o.User is null ? "—" : $"{o.User.FullName} ({o.User.UserName})")</dd>
+                    <dt class="col-5">Billing name</dt><dd class="col-7">@o.BillingName</dd>
+                    <dt class="col-5">Billing email</dt><dd class="col-7">@o.BillingEmail</dd>
+                    <dt class="col-5">Billing address</dt><dd class="col-7">@o.BillingAddressLine1 @o.BillingAddressLine2<br />@o.BillingCityStateZip</dd>
+                    <dt class="col-5">Service</dt><dd class="col-7">@o.ServiceName</dd>
+                    <dt class="col-5">Contact ID</dt><dd class="col-7">@o.ContactId</dd>
+                    <dt class="col-5">Store</dt><dd class="col-7">@(o.StoreName ?? "—")</dd>
+                </dl>
+            </div>
+        </div>
+        @if (o.FinalizedRecord is not null)
+        {
+            <a class="btn btn-outline-primary" asp-page="/Records/Details" asp-route-id="@o.FinalizedRecord.PublicId">View finalized record @o.FinalizedRecord.ConfirmationNumber</a>
+        }
+    </div>
+</div>

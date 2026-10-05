@@ -1,0 +1,14 @@
+@{
+    Layout = "_Layout";
+}
+<div class="auth-wrapper mx-auto @(ViewData["AuthWide"] is true ? "auth-wide" : "")">
+    <div class="card border-0 shadow-sm auth-card">
+        <div class="card-body p-4 p-md-5">
+            @RenderBody()
+        </div>
+    </div>
+    @await RenderSectionAsync("Below", required: false)
+</div>
+@section Scripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}

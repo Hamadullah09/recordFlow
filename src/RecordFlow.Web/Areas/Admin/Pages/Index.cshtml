@@ -1,0 +1,71 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
+        <div class="stat-label">Users</div><div class="stat-value">@Model.UserCount</div>
+        <div class="small text-muted">@Model.ActiveUsers30d active in the last 30 days</div>
+    </div></div></div>
+    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
+        <div class="stat-label">Revenue this month</div><div class="stat-value">@Model.RevenueMonth.ToString("C0")</div>
+        <div class="small text-muted">@Model.PaidOrdersMonth paid order@(Model.PaidOrdersMonth == 1 ? "" : "s")</div>
+    </div></div></div>
+    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
+        <div class="stat-label">Finalized records</div><div class="stat-value">@Model.FinalizedCount</div>
+        <div class="small text-muted">All time</div>
+    </div></div></div>
+    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
+        <div class="stat-label">Payments in progress</div><div class="stat-value">@Model.PendingOrders</div>
+        <div class="small text-muted">Pending or processing</div>
+    </div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Recent orders</h2>
+                <a class="small" asp-page="/Payments/Index">View all</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 data-table">
+                    <thead><tr><th>Order</th><th>Customer</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @foreach (var o in Model.RecentOrders)
+                        {
+                            <tr>
+                                <td><a asp-page="/Payments/Details" asp-route-id="@o.PublicId" class="font-monospace small">@o.OrderNumber</a></td>
+                                <td>@(o.User?.FullName ?? o.BillingName)</td>
+                                <td class="text-end">@o.Total.ToString("C")</td>
+                                <td><span class="badge rounded-pill @(o.IsPaid ? "text-bg-success" : "text-bg-light border")">@o.Status.Name()</span></td>
+                            </tr>
+                        }
+                        @if (Model.RecentOrders.Count == 0) { <tr><td colspan="4" class="text-muted text-center py-4">No orders yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Recent activity</h2>
+                <a class="small" asp-page="/AuditLogs/Index">Audit log</a>
+            </div>
+            <ul class="list-group list-group-flush small">
+                @foreach (var a in Model.RecentActivity)
+                {
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span>
+                            <span class="badge @(a.Succeeded ? "text-bg-light border" : "text-bg-danger") me-1">@a.Category</span>
+                            <strong>@a.Action</strong> <span class="text-muted">@a.UserName</span>
+                        </span>
+                        <span class="text-muted text-nowrap">@Time.DateAndTime(a.TimestampUtc)</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

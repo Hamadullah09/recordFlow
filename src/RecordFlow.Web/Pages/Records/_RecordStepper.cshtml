@@ -1,0 +1,26 @@
+@model RecordFlow.Web.Pages.Records.StepperModel
+@{
+    var status = Model.Record.Status;
+    var steps = new (string Label, bool Done)[]
+    {
+        ("Select record", true),
+        ("Checkout", status >= RecordStatus.AwaitingPayment),
+        ("Payment", status >= RecordStatus.Paid),
+        ("Form & share", status >= RecordStatus.ReadyForVerification),
+        ("Verify", status >= RecordStatus.Verified),
+        ("Receipt", status >= RecordStatus.Verified),
+    };
+}
+<nav aria-label="Progress" class="stepper-wrap mb-4">
+    <ol class="stepper list-unstyled d-flex mb-0">
+        @for (var i = 0; i < steps.Length; i++)
+        {
+            var n = i + 1;
+            var state = n == Model.Current ? "current" : steps[i].Done ? "done" : "todo";
+            <li class="step @state" aria-current="@(n == Model.Current ? "step" : null)">
+                <span class="dot">@(state == "done" ? "✓" : n.ToString())</span>
+                <span class="label">@steps[i].Label</span>
+            </li>
+        }
+    </ol>
+</nav>

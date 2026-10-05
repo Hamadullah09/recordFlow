@@ -1,0 +1,25 @@
+@page "/checkout/test-gateway"
+@model RecordFlow.Web.Pages.Checkout.TestGatewayModel
+@{
+    ViewData["Title"] = "Test payment";
+    var s = Model.Session!;
+}
+<div class="narrow-page narrow-page-sm mx-auto">
+    <div class="alert alert-warning small">
+        <strong>Development test gateway.</strong> This simulates the payment processor's hosted page. No card details are requested or collected.
+        In production, customers are redirected to Stripe Checkout instead.
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 text-center">
+            <h1 class="h4 mb-1">Test payment</h1>
+            <p class="text-muted mb-4">Order @s.OrderNumber</p>
+            <p class="display-6 fw-bold mb-4">@((s.AmountMinor / 100m).ToString("C"))</p>
+            <form method="post" class="d-grid gap-2">
+                <input type="hidden" name="session" value="@Model.SessionId" />
+                <button type="submit" name="decision" value="approve" class="btn btn-success btn-lg">Simulate successful payment</button>
+                <button type="submit" name="decision" value="decline" class="btn btn-outline-danger">Simulate declined payment</button>
+                <button type="submit" name="decision" value="cancel" class="btn btn-link">Cancel and return</button>
+            </form>
+        </div>
+    </div>
+</div>

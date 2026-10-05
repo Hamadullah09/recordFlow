@@ -1,0 +1,50 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.AuditLogs.IndexModel
+@{
+    ViewData["Title"] = "Audit log";
+}
+<h1 class="h4 mb-1">Audit log</h1>
+<p class="text-muted mb-3">Security, administrative, record and payment activity. Entries never contain CSV contents, passwords or card data.</p>
+
+<form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small" for="category">Category</label>
+            <select class="form-select" id="category" name="category">
+                <option value="">All</option>
+                @foreach (var c in RecordFlow.Web.Areas.Admin.Pages.AuditLogs.IndexModel.Categories) { <option value="@c" selected="@(Model.Category == c)">@c</option> }
+            </select>
+        </div>
+        <div class="col-md-3"><label class="form-label small" for="q">Search</label><input class="form-control" id="q" name="q" value="@Model.Q" placeholder="Action, user, entity, IP" /></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="from">From</label><input class="form-control" type="date" id="from" name="from" value="@Model.From?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="to">To</label><input class="form-control" type="date" id="to" name="to" value="@Model.To?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-md-2 d-grid gap-1">
+            <div class="form-check small"><input class="form-check-input" type="checkbox" id="failuresOnly" name="failuresOnly" value="true" checked="@Model.FailuresOnly" /><label class="form-check-label" for="failuresOnly">Failures only</label></div>
+            <button class="btn btn-outline-primary" type="submit">Filter</button>
+        </div>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 data-table responsive-table">
+            <thead><tr><th>Time</th><th>Category</th><th>Action</th><th>User</th><th>Entity</th><th>Details</th><th>IP address</th></tr></thead>
+            <tbody>
+                @foreach (var a in Model.Entries)
+                {
+                    <tr class="@(a.Succeeded ? "" : "table-danger")">
+                        <td data-label="Time">@Time.DateAndTime(a.TimestampUtc)</td>
+                        <td data-label="Category"><span class="badge text-bg-light border">@a.Category</span></td>
+                        <td data-label="Action" class="fw-semibold">@a.Action</td>
+                        <td data-label="User">@(a.UserName ?? "—")</td>
+                        <td data-label="Entity" class="small">@(a.EntityType is null ? "—" : $"{a.EntityType} {a.EntityId}")</td>
+                        <td data-label="Details" class="small text-wrap">@(a.Details ?? "")</td>
+                        <td data-label="IP address" class="small font-monospace">@(a.IpAddress ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Entries.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-4">No entries match.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

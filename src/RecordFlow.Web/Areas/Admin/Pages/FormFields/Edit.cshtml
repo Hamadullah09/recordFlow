@@ -1,0 +1,72 @@
+@page "{id:int?}"
+@model RecordFlow.Web.Areas.Admin.Pages.FormFields.EditModel
+@{
+    ViewData["Title"] = Model.Id is null ? "Add form field" : "Edit form field";
+}
+<a class="small text-decoration-none" asp-page="./Index">&larr; All form fields</a>
+<h1 class="h4 mt-2 mb-3">@ViewData["Title"]</h1>
+<form method="post" class="card border-0 shadow-sm narrow-page" novalidate>
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Input.Label" class="form-label"></label>
+                <input asp-for="Input.Label" class="form-control" />
+                <span asp-validation-for="Input.Label" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.Key" class="form-label"></label>
+                <input asp-for="Input.Key" class="form-control font-monospace" readonly="@(Model.Id is not null)" />
+                <div class="form-text">Permanent identifier; can't be changed later.</div>
+                <span asp-validation-for="Input.Key" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.Section" class="form-label"></label>
+                <select asp-for="Input.Section" class="form-select">
+                    @foreach (var s in Enum.GetValues<FormSection>().Where(s => s != FormSection.Additional)) { <option value="@s">@s.Name()</option> }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.FieldType" class="form-label"></label>
+                <select asp-for="Input.FieldType" class="form-select">
+                    @foreach (var t in Enum.GetValues<FieldType>()) { <option value="@t">@t.Name()</option> }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label asp-for="Input.DisplayOrder" class="form-label">Order</label>
+                <input asp-for="Input.DisplayOrder" class="form-control" type="number" />
+            </div>
+            <div class="col-md-2">
+                <label asp-for="Input.MaxLength" class="form-label">Max length</label>
+                <input asp-for="Input.MaxLength" class="form-control" type="number" />
+                <span asp-validation-for="Input.MaxLength" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Input.CsvAliases" class="form-label"></label>
+                <input asp-for="Input.CsvAliases" class="form-control" placeholder="Store Manager, Manager Name, Manager" />
+                <div class="form-text">CSV header names that fill this field. Spacing, punctuation and capitalization are ignored.</div>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.HelpText" class="form-label"></label>
+                <input asp-for="Input.HelpText" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.Options" class="form-label"></label>
+                <input asp-for="Input.Options" class="form-control" />
+                <span asp-validation-for="Input.Options" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-4">
+                <div class="form-check form-switch"><input class="form-check-input" asp-for="Input.IsActive" role="switch" /><label class="form-check-label" asp-for="Input.IsActive"></label></div>
+                <div class="form-check form-switch"><input class="form-check-input" asp-for="Input.IsRequired" role="switch" /><label class="form-check-label" asp-for="Input.IsRequired"></label></div>
+                <div class="form-check form-switch"><input class="form-check-input" asp-for="Input.RecipientEditable" role="switch" /><label class="form-check-label" asp-for="Input.RecipientEditable"></label></div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-end gap-2">
+        <a class="btn btn-light" asp-page="./Index">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save field</button>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

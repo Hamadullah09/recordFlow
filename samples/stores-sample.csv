@@ -1,0 +1,5 @@
+Contact ID,Store ID,Store Name,Address Line 1,Address Line 2,City,State,ZIP Code,Store Phone Number,Owner Name,Present Phone Number,Fire Station Number,Alarm Service ID,Alarm Service Phone Number,Region,Store Manager
+C-1001,ST-204,Main Street Market,125 Main St,,Springfield,IL,62701,(217) 555-0142,Maria Lopez,(217) 555-0199,Station 7,ALM-55821,(800) 555-0110,Midwest,Dan Price
+C-1002,ST-311,Harbor View Grocery,48 Harbor Rd,Suite 2,Portland,ME,04101,(207) 555-0175,,,,ALM-77310,,Northeast,
+C-1003,ST-415,Desert Sun Pharmacy,9 Canyon Blvd,,Phoenix,AZ,85004,602-555-0123,James Carter,602-555-0177,Station 12,,,Southwest,"=HYPERLINK(""http://example.com"",""click"")"
+C-1004,ST-520,Bayou Hardware,,,New Orleans,LA,,504-555-0101,Ann Lee,,,,,South,

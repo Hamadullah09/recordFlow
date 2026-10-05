@@ -1,0 +1,40 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.FormFields.IndexModel
+@{
+    ViewData["Title"] = "Form fields";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+    <h1 class="h4 mb-0">Form fields</h1>
+    <a class="btn btn-primary" asp-page="./Edit">+ Add field</a>
+</div>
+<p class="text-muted mb-3">
+    These fields make up the generated form. Each field is filled from the first matching CSV column listed in its aliases;
+    missing values stay empty and editable. CSV columns that match no field are added automatically under “Additional Information”.
+</p>
+
+@foreach (var grp in Model.Fields.GroupBy(f => f.Section))
+{
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white"><h2 class="h6 mb-0">@grp.Key.Name()</h2></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 data-table responsive-table">
+                <thead><tr><th>Label</th><th>Key</th><th>Type</th><th>CSV aliases</th><th>Required</th><th>Recipient can edit</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var f in grp)
+                    {
+                        <tr class="@(f.IsActive ? "" : "text-muted")">
+                            <td data-label="Label" class="fw-semibold">@f.Label</td>
+                            <td data-label="Key"><code>@f.Key</code></td>
+                            <td data-label="Type">@f.FieldType.Name()</td>
+                            <td data-label="CSV aliases" class="small text-wrap">@(f.CsvAliases ?? "—")</td>
+                            <td data-label="Required">@(f.IsRequired ? "Yes" : "No")</td>
+                            <td data-label="Recipient can edit">@(f.RecipientEditable ? "Yes" : "No")</td>
+                            <td data-label="Status"><span class="badge @(f.IsActive ? "text-bg-success" : "text-bg-light border")">@(f.IsActive ? "Active" : "Inactive")</span></td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-id="@f.Id">Edit</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

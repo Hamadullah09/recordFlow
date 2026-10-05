@@ -1,0 +1,29 @@
+@page "/dev/mailbox"
+@model RecordFlow.Web.Pages.Dev.MailboxModel
+@{
+    ViewData["Title"] = "Development mailbox";
+}
+<div class="page-header mb-4">
+    <h1 class="h3 mb-1">Development mailbox</h1>
+    <p class="text-muted mb-0">Emails sent while running in Development are captured here instead of being delivered. Newest first; the last 50 are kept in memory.</p>
+</div>
+@if (Model.Messages.Count == 0)
+{
+    <div class="card border-0 shadow-sm"><div class="card-body text-muted">No emails yet.</div></div>
+}
+@foreach (var m in Model.Messages)
+{
+    <article class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between gap-2">
+            <strong>@m.Subject</strong>
+            <span class="small text-muted">To @m.To · @Time.DateAndTime(m.SentAtUtc)</span>
+        </div>
+        <div class="card-body">
+            <pre class="mail-body small mb-3">@m.TextBody</pre>
+            @foreach (var link in RecordFlow.Web.Pages.Dev.MailboxModel.Links(m.TextBody))
+            {
+                <a class="btn btn-sm btn-primary me-2 mb-2" href="@link">Open link</a>
+            }
+        </div>
+    </article>
+}

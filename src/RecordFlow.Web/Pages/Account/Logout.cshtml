@@ -1,0 +1,11 @@
+@page
+@model LogoutModel
+@{
+    ViewData["Title"] = "Sign out";
+}
+<h1 class="h3 mb-3">Sign out?</h1>
+<p class="text-muted">Signing out ends your working session. Any uploaded CSV data and unfinished records in your temporary workspace will be removed.</p>
+<form method="post" class="d-grid gap-2 mt-4">
+    <button type="submit" class="btn btn-primary btn-lg">Sign out</button>
+    <a class="btn btn-link" asp-page="/Dashboard">Cancel</a>
+</form>

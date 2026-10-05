@@ -1,0 +1,71 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "Pricing & settings";
+}
+<h1 class="h4 mb-3">Pricing &amp; settings</h1>
+<div class="row g-4">
+    <div class="col-xl-7">
+        <form method="post" class="card border-0 shadow-sm" novalidate>
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Pricing</h2></div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="Input.ServiceName" class="form-label"></label>
+                        <input asp-for="Input.ServiceName" class="form-control" />
+                        <span asp-validation-for="Input.ServiceName" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Input.ServiceDescription" class="form-label"></label>
+                        <textarea asp-for="Input.ServiceDescription" class="form-control" rows="2"></textarea>
+                        <span asp-validation-for="Input.ServiceDescription" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.UnitPrice" class="form-label"></label>
+                        <div class="input-group"><span class="input-group-text">$</span><input asp-for="Input.UnitPrice" class="form-control" inputmode="decimal" /></div>
+                        <span asp-validation-for="Input.UnitPrice" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.TaxRatePercent" class="form-label"></label>
+                        <div class="input-group"><input asp-for="Input.TaxRatePercent" class="form-control" inputmode="decimal" /><span class="input-group-text">%</span></div>
+                        <span asp-validation-for="Input.TaxRatePercent" class="invalid-feedback d-block"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.ProcessingFee" class="form-label"></label>
+                        <div class="input-group"><span class="input-group-text">$</span><input asp-for="Input.ProcessingFee" class="form-control" inputmode="decimal" /></div>
+                        <span asp-validation-for="Input.ProcessingFee" class="invalid-feedback d-block"></span>
+                    </div>
+                </div>
+                <p class="small text-muted mt-3 mb-0">
+                    Current customer total: <strong>@Model.Quote.Total.ToString("C")</strong>. A single flat tax rate is applied; for state-by-state
+                    U.S. sales tax, enable Stripe Tax (see deployment guide).
+                </p>
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">Save pricing</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-xl-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Runtime configuration <span class="text-muted fw-normal">(read-only)</span></h2></div>
+            <div class="card-body">
+                <dl class="row small kv mb-0">
+                    <dt class="col-6">Workspace idle timeout</dt><dd class="col-6">@Model.IdleTimeout.TotalMinutes minutes</dd>
+                    <dt class="col-6">Workspace max lifetime</dt><dd class="col-6">@Model.MaxLifetime.TotalHours hours</dd>
+                    <dt class="col-6">Max CSV size</dt><dd class="col-6">@(Model.Csv.MaxFileBytes / 1048576) MB</dd>
+                    <dt class="col-6">Max CSV rows / columns</dt><dd class="col-6">@Model.Csv.MaxRows.ToString("N0") / @Model.Csv.MaxColumns</dd>
+                    <dt class="col-6">Payment provider</dt><dd class="col-6">@Model.Payments.Provider@(Model.Payments.EnableAch ? " (cards + ACH)" : " (cards)")</dd>
+                    <dt class="col-6">Email delivery</dt><dd class="col-6">@Model.Email.Provider</dd>
+                    <dt class="col-6">Display time zone</dt><dd class="col-6">@Model.App.TimeZone</dd>
+                    <dt class="col-6">Public URL</dt><dd class="col-6 text-break">@(string.IsNullOrEmpty(Model.App.PublicBaseUrl) ? "(from request – development only)" : Model.App.PublicBaseUrl)</dd>
+                </dl>
+                <p class="small text-muted mt-3 mb-0">These values come from appsettings / environment variables. See <code>docs/DEPLOYMENT.md</code>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,48 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Payments.IndexModel
+@{
+    ViewData["Title"] = "Payments & orders";
+}
+<h1 class="h4 mb-1">Payments &amp; orders</h1>
+<p class="text-muted mb-3">Card data is held only by the payment processor. Paid total for this filter: <strong>@Model.PaidTotal.ToString("C")</strong></p>
+
+<form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-6"><label class="form-label small" for="q">Search</label><input class="form-control" id="q" name="q" value="@Model.Q" placeholder="Order #, Contact ID, billing name/email or transaction ID" /></div>
+        <div class="col-md-3">
+            <label class="form-label small" for="status">Payment status</label>
+            <select class="form-select" id="status" name="status">
+                <option value="">All</option>
+                @foreach (var s in Enum.GetValues<OrderStatus>()) { <option value="@s" selected="@(Model.Status == s)">@s.Name()</option> }
+            </select>
+        </div>
+        <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" type="submit">Filter</button></div>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 data-table responsive-table">
+            <thead><tr><th>Created</th><th>Order #</th><th>Customer</th><th>Contact ID</th><th class="text-end">Amount</th><th>Payment status</th><th>Payment date</th><th>Transaction ID</th><th>Order status</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var o in Model.Orders)
+                {
+                    <tr>
+                        <td data-label="Created">@Time.Date(o.CreatedAtUtc)</td>
+                        <td data-label="Order #" class="font-monospace small">@o.OrderNumber</td>
+                        <td data-label="Customer">@o.Customer<span class="d-block small text-muted">@o.UserName</span></td>
+                        <td data-label="Contact ID">@o.ContactId</td>
+                        <td data-label="Amount" class="text-end">@o.Total.ToString("C")</td>
+                        <td data-label="Payment status"><span class="badge rounded-pill @RecordFlow.Web.Areas.Admin.Pages.Payments.IndexModel.BadgeClass(o.Status)">@o.Status.Name()</span></td>
+                        <td data-label="Payment date">@Time.DateAndTime(o.PaidAtUtc)</td>
+                        <td data-label="Transaction ID" class="font-monospace small text-truncate">@(o.ProviderPaymentId ?? "—")</td>
+                        <td data-label="Order status">@(o.Finalized ? "Completed" : o.Status == OrderStatus.Paid ? "Awaiting confirmation" : "Open")</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Details" asp-route-id="@o.PublicId">View</a></td>
+                    </tr>
+                }
+                @if (Model.Orders.Count == 0) { <tr><td colspan="10" class="text-center text-muted py-4">No orders found.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "recordflow-web",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/RecordFlow.Web", "--launch-profile", "https"],
+      "port": 7290,
+      "url": "https://localhost:7290"
+    }
+  ]
+}

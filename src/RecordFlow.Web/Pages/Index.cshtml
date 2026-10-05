@@ -1,0 +1,55 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Store contact verification made simple";
+}
+<section class="hero py-4 py-lg-5">
+    <div class="row align-items-center g-5">
+        <div class="col-lg-6">
+            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis mb-3">Secure · Simple · Built for U.S. businesses</span>
+            <h1 class="display-5 fw-bold mb-3">Verify store and emergency contact records in minutes.</h1>
+            <p class="lead text-secondary mb-4">
+                Upload a CSV, pick a record, check out securely, and send a private form so the store can fill in
+                anything that's missing. Their answers flow straight back into your record for a final review.
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                <a class="btn btn-primary btn-lg px-4" asp-page="/Account/Register">Create a free account</a>
+                <a class="btn btn-outline-secondary btn-lg px-4" asp-page="/Account/Login">Sign in</a>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 hero-card">
+                <div class="card-body p-4">
+                    <h2 class="h6 text-uppercase text-muted mb-3">How it works</h2>
+                    <ol class="steps-list list-unstyled mb-0">
+                        <li><span class="step-num">1</span><div><strong>Upload your CSV</strong><br /><span class="text-muted">Used only for your current session — never stored permanently.</span></div></li>
+                        <li><span class="step-num">2</span><div><strong>Select a record &amp; check out</strong><br /><span class="text-muted">Pay securely with Visa, Mastercard, American Express or Discover.</span></div></li>
+                        <li><span class="step-num">3</span><div><strong>Share the form</strong><br /><span class="text-muted">Send a private link by email, text message or WhatsApp.</span></div></li>
+                        <li><span class="step-num">4</span><div><strong>Verify &amp; confirm</strong><br /><span class="text-muted">Review everything in one place and get your receipt.</span></div></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4 mt-2">
+    <div class="col-md-4">
+        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
+            <h3 class="h5">Private by design</h3>
+            <p class="text-muted mb-0">Uploaded CSV data lives only in an encrypted, expiring workspace that only you can see.</p>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
+            <h3 class="h5">PCI-compliant checkout</h3>
+            <p class="text-muted mb-0">Card details are entered on our payment processor's secure page. We never see or store them.</p>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
+            <h3 class="h5">No copy &amp; paste</h3>
+            <p class="text-muted mb-0">When the recipient submits the form, your record updates automatically and is ready to verify.</p>
+        </div></div>
+    </div>
+</section>

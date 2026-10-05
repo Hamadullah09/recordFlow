@@ -1,0 +1,24 @@
+@model RecordFlow.Core.Workspaces.WorkingField
+@{
+    // On the recipient's form, "you" would be misleading – only highlight what still needs information.
+    var recipientView = ViewData["RecipientView"] is true;
+}
+@if (Model.IsMissing)
+{
+    <span class="badge rounded-pill badge-missing">@(Model.IsRequired ? "Required – needs info" : "Needs info")</span>
+}
+else if (!recipientView)
+{
+    switch (Model.Source)
+    {
+        case FieldSource.Csv:
+            <span class="badge rounded-pill badge-csv">From CSV</span>
+            break;
+        case FieldSource.User:
+            <span class="badge rounded-pill badge-user">Updated by you</span>
+            break;
+        case FieldSource.Recipient:
+            <span class="badge rounded-pill badge-recipient">Added by recipient</span>
+            break;
+    }
+}

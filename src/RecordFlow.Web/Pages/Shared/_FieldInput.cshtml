@@ -1,0 +1,72 @@
+@model RecordFlow.Web.Pages.Records.FieldInputModel
+@{
+    var f = Model.Field;
+    var id = "f_" + f.Key;
+    var name = $"{Model.NamePrefix}[{f.Key}]";
+    var invalid = Model.Error is null ? "" : "is-invalid";
+    var describedBy = string.Join(' ', new[] { f.HelpText is null ? null : id + "_help", Model.Error is null ? null : id + "_err" }.Where(x => x is not null));
+}
+<div class="field @(f.IsMissing && !Model.ReadOnly ? "field-missing" : "")">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+        <label class="form-label mb-0" for="@id">@f.Label@if (f.IsRequired) {<span class="text-danger" aria-hidden="true"> *</span>}</label>
+        <partial name="_SourceBadge" model="f" />
+    </div>
+    @if (Model.ReadOnly)
+    {
+        <div class="form-control-plaintext readonly-value" id="@id">@(string.IsNullOrWhiteSpace(Model.Value) ? "—" : Model.Value)</div>
+    }
+    else
+    {
+        switch (f.FieldType)
+        {
+            case FieldType.TextArea:
+                <textarea class="form-control @invalid" id="@id" name="@name" rows="3" maxlength="@f.MaxLength" required="@f.IsRequired" aria-describedby="@describedBy">@Model.Value</textarea>
+                break;
+            case FieldType.State:
+                <select class="form-select @invalid" id="@id" name="@name" required="@f.IsRequired" aria-describedby="@describedBy">
+                    <option value="">Select a state</option>
+                    @foreach (var s in UsStates.All)
+                    {
+                        <option value="@s.Key" selected="@(string.Equals(UsStates.Normalize(Model.Value), s.Key, StringComparison.Ordinal))">@s.Value</option>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Value) && !UsStates.IsValid(Model.Value))
+                    {
+                        <option value="@Model.Value" selected>@Model.Value (from CSV)</option>
+                    }
+                </select>
+                break;
+            case FieldType.Select:
+            case FieldType.YesNo:
+                var options = f.FieldType == FieldType.YesNo ? new List<string> { "Y", "N" } : f.Options;
+                <select class="form-select @invalid" id="@id" name="@name" required="@f.IsRequired" aria-describedby="@describedBy">
+                    <option value="">Select…</option>
+                    @foreach (var o in options)
+                    {
+                        <option value="@o" selected="@(string.Equals(o, Model.Value, StringComparison.OrdinalIgnoreCase))">@(f.FieldType == FieldType.YesNo ? (o == "Y" ? "Yes" : "No") : o)</option>
+                    }
+                </select>
+                break;
+            default:
+                var (type, mode, auto) = f.FieldType switch
+                {
+                    FieldType.Phone => ("tel", "tel", "tel"),
+                    FieldType.Email => ("email", "email", "email"),
+                    FieldType.ZipCode => ("text", "numeric", "postal-code"),
+                    FieldType.Number => ("text", "decimal", "off"),
+                    FieldType.Date => ("date", "text", "off"),
+                    _ => ("text", "text", "off"),
+                };
+                <input class="form-control @invalid" id="@id" name="@name" type="@type" inputmode="@mode" autocomplete="@auto" value="@Model.Value" maxlength="@f.MaxLength" required="@f.IsRequired" aria-describedby="@describedBy"
+                       placeholder="@(f.FieldType switch { FieldType.Phone => "(555) 123-4567", FieldType.ZipCode => "12345", _ => null })" />
+                break;
+        }
+    }
+    @if (f.HelpText is not null)
+    {
+        <div class="form-text" id="@(id)_help">@f.HelpText</div>
+    }
+    @if (Model.Error is not null)
+    {
+        <div class="invalid-feedback d-block" id="@(id)_err">@Model.Error</div>
+    }
+</div>

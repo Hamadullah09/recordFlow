@@ -1,0 +1,99 @@
+@page "/f/{token}"
+@model RecordFlow.Web.Pages.Recipient.FormModel
+@{
+    ViewData["Title"] = "Complete store information";
+    ViewData["RecipientView"] = true;
+    var shared = Model.Shared;
+}
+@if (shared is null)
+{
+    <div class="narrow-page narrow-page-sm mx-auto">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-5 text-center">
+                <div class="icon-circle icon-danger mx-auto mb-3" aria-hidden="true">!</div>
+                <h1 class="h4 mb-2">This link is no longer available</h1>
+                <p class="text-muted mb-0">The form may already have been submitted, or the link has expired. Please contact the person who sent it to you for a new link.</p>
+            </div>
+        </div>
+    </div>
+}
+else if (Model.AlreadySubmitted)
+{
+    <div class="narrow-page narrow-page-sm mx-auto">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-5 text-center">
+                <div class="icon-circle icon-success mx-auto mb-3" aria-hidden="true">&#10003;</div>
+                <h1 class="h4 mb-2">This form has already been submitted</h1>
+                <p class="text-muted mb-0">Thank you. If you need to make more changes, ask the sender for a new link.</p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    var r = shared.Record;
+    var missingRequired = r.Fields!.Count(f => f.RecipientEditable && f.IsRequired && f.IsMissing);
+    <div class="page-header mb-4">
+        <h1 class="h3 mb-1">Please review and complete this information</h1>
+        <p class="text-muted mb-0">
+            Requested by <strong>@shared.RequestedBy</strong>@if (!string.IsNullOrEmpty(shared.CompanyName)) {<text> from <strong>@shared.CompanyName</strong></text>}
+            for <strong>@(r.StoreName ?? "a store record")</strong>.
+        </p>
+    </div>
+
+    @if (Model.Errors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">Please correct the @Model.Errors.Count highlighted field@(Model.Errors.Count == 1 ? "" : "s") below.</div>
+    }
+    else if (missingRequired > 0)
+    {
+        <div class="alert alert-warning">@missingRequired required field@(missingRequired == 1 ? " is" : "s are") missing. They're highlighted below.</div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-8 order-2 order-lg-1">
+            <form method="post" novalidate>
+                @foreach (var grp in Model.Sections)
+                {
+                    <section class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white"><h2 class="h6 mb-0">@grp.Key.Name()</h2></div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @foreach (var f in grp)
+                                {
+                                    <div class="@(f.FieldType == FieldType.TextArea ? "col-12" : "col-md-6")">
+                                        <partial name="_FieldInput" model="new RecordFlow.Web.Pages.Records.FieldInputModel(f, Model.ValueFor(f), Model.Errors.GetValueOrDefault(f.Key), ReadOnly: !f.RecipientEditable)" />
+                                        @if (f.RecipientEditable)
+                                        {
+                                            <input type="hidden" name="Original[@f.Key]" value="@Model.OriginalFor(f)" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </section>
+                }
+
+                <section class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <label class="form-label" for="RecipientName">Your name <span class="text-muted">(optional)</span></label>
+                        <input class="form-control form-control-lg" id="RecipientName" name="RecipientName" value="@Model.RecipientName" maxlength="100" autocomplete="name" />
+                        <div class="form-text">So the requester knows who provided the information.</div>
+                    </div>
+                </section>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Submit information</button>
+                </div>
+                <p class="small text-muted mt-2 text-center">You can submit this form once. Your answers are sent securely to the requester.</p>
+            </form>
+        </div>
+        <div class="col-lg-4 order-1 order-lg-2">
+            @if (shared.Order is not null)
+            {
+                <partial name="_OrderReadOnly" model="shared.Order" />
+                <p class="small text-muted mt-2">Order and billing details are shown for reference and can't be changed.</p>
+            }
+        </div>
+    </div>
+}

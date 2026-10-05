@@ -1,0 +1,28 @@
+@{
+    var success = TempData["Success"] as string;
+    var error = TempData["Error"] as string;
+    var info = TempData["Info"] as string;
+}
+@if (success is not null)
+{
+    <div class="alert alert-success alert-dismissible fade show d-flex align-items-start gap-2" role="status">
+        <span class="alert-icon" aria-hidden="true">&#10003;</span>
+        <div class="flex-grow-1">@success</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (error is not null)
+{
+    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-start gap-2" role="alert">
+        <span class="alert-icon" aria-hidden="true">!</span>
+        <div class="flex-grow-1">@error</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (info is not null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="status">
+        @info
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}

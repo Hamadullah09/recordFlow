@@ -1,0 +1,10 @@
+@page
+@{
+    ViewData["Title"] = "Account temporarily locked";
+}
+<div class="text-center">
+    <div class="icon-circle icon-danger mx-auto mb-3" aria-hidden="true">&#128274;</div>
+    <h1 class="h3 mb-3">Account temporarily locked</h1>
+    <p class="text-muted">For your security, this account was locked after several unsuccessful sign-in attempts. Please try again in 15 minutes, or reset your password.</p>
+    <a class="btn btn-primary mt-2" asp-page="./ForgotPassword">Reset password</a>
+</div>

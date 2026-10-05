@@ -1,0 +1,37 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Companies.IndexModel
+@{
+    ViewData["Title"] = "Companies";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h4 mb-0">Companies</h1>
+    <a class="btn btn-primary" asp-page="./Edit">+ Add company</a>
+</div>
+<form method="get" class="d-flex gap-2 mb-3 search-form">
+    <label class="visually-hidden" for="q">Search companies</label>
+    <input class="form-control" id="q" name="q" value="@Model.Q" placeholder="Search by name" />
+    <button class="btn btn-outline-primary" type="submit">Search</button>
+</form>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 data-table responsive-table">
+            <thead><tr><th>Name</th><th>Location</th><th>Phone</th><th class="text-end">Users</th><th>Status</th><th>Created</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.Companies)
+                {
+                    <tr>
+                        <td data-label="Name" class="fw-semibold">@c.Name</td>
+                        <td data-label="Location">@(c.City is null ? "—" : $"{c.City}, {c.State}")</td>
+                        <td data-label="Phone">@(c.Phone ?? "—")</td>
+                        <td data-label="Users" class="text-end">@c.Users</td>
+                        <td data-label="Status"><span class="badge @(c.IsActive ? "text-bg-success" : "text-bg-light border")">@(c.IsActive ? "Active" : "Inactive")</span></td>
+                        <td data-label="Created">@Time.Date(c.CreatedAtUtc)</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-id="@c.Id">Edit</a></td>
+                    </tr>
+                }
+                @if (Model.Companies.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-4">No companies found.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

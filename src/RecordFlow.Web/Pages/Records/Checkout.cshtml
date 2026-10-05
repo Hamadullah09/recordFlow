@@ -1,0 +1,159 @@
+@page "/records/{key}/checkout"
+@model RecordFlow.Web.Pages.Records.CheckoutModel
+@{
+    ViewData["Title"] = "Checkout";
+    var store = Model.Record.StoreName ?? "Store record";
+}
+<partial name="_RecordStepper" model="new StepperModel(Model.Record, 2)" />
+
+<div class="page-header mb-4">
+    <a class="small text-decoration-none" asp-page="/Dashboard">&larr; Back to dashboard</a>
+    <h1 class="h3 mt-2 mb-1">Checkout</h1>
+    <p class="text-muted mb-0">Enter billing details for <strong>@store</strong> (Contact ID @Model.Record.ContactId). You'll pay on the next screen.</p>
+</div>
+
+@if (Model.Record.Status == RecordStatus.CheckoutStarted && Model.Order is { } previous && previous.Status is OrderStatus.Failed or OrderStatus.Canceled)
+{
+    <div class="alert alert-warning">Your previous payment attempt (order @previous.OrderNumber) was not completed@(previous.FailureReason is null ? "" : $": {previous.FailureReason.TrimEnd('.')}"). You can try again below.</div>
+}
+@if (Model.MissingColumns.Count > 0)
+{
+    <div class="alert alert-danger">Before checkout, fill in <strong>@string.Join(", ", Model.MissingColumns)</strong> for this record on the <a asp-page="/Dashboard">dashboard</a>.</div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Selected record</h2>
+                <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#csvPreview" aria-expanded="false" aria-controls="csvPreview">
+                    Show CSV details (@(Model.CsvPreview.Count - Model.CsvMissingCount) of @Model.CsvPreview.Count filled)
+                </button>
+            </div>
+            <div class="card-body pb-2">
+                <dl class="row small mb-0 kv">
+                    <dt class="col-sm-4">Contact ID</dt><dd class="col-sm-8 fw-semibold">@Model.Record.ContactId</dd>
+                    <dt class="col-sm-4">Store</dt><dd class="col-sm-8">@store</dd>
+                    <dt class="col-sm-4">Response</dt><dd class="col-sm-8">@(Model.Record.Response switch { "Y" => "Yes", "N" => "No", _ => "—" })</dd>
+                </dl>
+                <div class="collapse mt-3" id="csvPreview">
+                    <dl class="row small mb-0 kv border-top pt-3">
+                        @foreach (var kv in Model.CsvPreview)
+                        {
+                            <dt class="col-sm-5 text-truncate">@kv.Key</dt>
+                            <dd class="col-sm-7">@if (kv.Value is null) {<span class="text-muted fst-italic">missing – can be added later</span>} else {@kv.Value}</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Billing details</h2></div>
+            <div class="card-body">
+                <form method="post" id="checkoutForm" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.BillingName" class="form-label"></label>
+                            <input asp-for="Input.BillingName" class="form-control form-control-lg" autocomplete="name" />
+                            <span asp-validation-for="Input.BillingName" class="invalid-feedback d-block"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.BillingEmail" class="form-label"></label>
+                            <input asp-for="Input.BillingEmail" class="form-control form-control-lg" autocomplete="email" />
+                            <span asp-validation-for="Input.BillingEmail" class="invalid-feedback d-block"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.AddressLine1" class="form-label"></label>
+                            <input asp-for="Input.AddressLine1" class="form-control form-control-lg" autocomplete="address-line1" />
+                            <span asp-validation-for="Input.AddressLine1" class="invalid-feedback d-block"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.AddressLine2" class="form-label"></label>
+                            <input asp-for="Input.AddressLine2" class="form-control form-control-lg" autocomplete="address-line2" />
+                        </div>
+                        <div class="col-md-5">
+                            <label asp-for="Input.City" class="form-label"></label>
+                            <input asp-for="Input.City" class="form-control form-control-lg" autocomplete="address-level2" />
+                            <span asp-validation-for="Input.City" class="invalid-feedback d-block"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.State" class="form-label"></label>
+                            <select asp-for="Input.State" class="form-select form-select-lg" autocomplete="address-level1">
+                                <option value="">Select…</option>
+                                @foreach (var s in UsStates.All)
+                                {
+                                    <option value="@s.Key">@s.Value</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.State" class="invalid-feedback d-block"></span>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Input.ZipCode" class="form-label"></label>
+                            <input asp-for="Input.ZipCode" class="form-control form-control-lg" inputmode="numeric" autocomplete="postal-code" maxlength="10" />
+                            <span asp-validation-for="Input.ZipCode" class="invalid-feedback d-block"></span>
+                        </div>
+                    </div>
+
+                    <fieldset class="mt-4">
+                        <legend class="form-label fs-6">Payment method</legend>
+                        <div class="payment-options d-grid gap-2">
+                            <label class="payment-option">
+                                <input type="radio" class="form-check-input" asp-for="Input.PaymentMethod" value="@PaymentMethodKind.Card" />
+                                <span class="flex-grow-1">
+                                    <span class="d-block fw-semibold">Credit or debit card</span>
+                                    <span class="card-brands"><span>VISA</span><span>Mastercard</span><span>AMEX</span><span>DISCOVER</span></span>
+                                </span>
+                            </label>
+                            @if (Model.AchEnabled)
+                            {
+                                <label class="payment-option">
+                                    <input type="radio" class="form-check-input" asp-for="Input.PaymentMethod" value="@PaymentMethodKind.BankAccount" />
+                                    <span class="flex-grow-1">
+                                        <span class="d-block fw-semibold">U.S. bank account (ACH)</span>
+                                        <span class="small text-muted">Takes 3–5 business days to clear.</span>
+                                    </span>
+                                </label>
+                            }
+                        </div>
+                        <span asp-validation-for="Input.PaymentMethod" class="invalid-feedback d-block"></span>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm summary-card sticky-lg-top">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Order summary</h2>
+                <div class="d-flex justify-content-between mb-1"><span class="fw-semibold">@Model.Pricing.ServiceName</span><span>@Model.Quote.Subtotal.ToString("C")</span></div>
+                <p class="small text-muted mb-3">@Model.Pricing.ServiceDescription</p>
+                <div class="d-flex justify-content-between small text-muted"><span>Contact ID</span><span>@Model.Record.ContactId</span></div>
+                <hr />
+                <div class="d-flex justify-content-between mb-1"><span>Subtotal</span><span>@Model.Quote.Subtotal.ToString("C")</span></div>
+                @if (Model.Quote.Tax > 0)
+                {
+                    <div class="d-flex justify-content-between mb-1"><span>Sales tax (@Model.Pricing.TaxRatePercent.ToString("0.###")%)</span><span>@Model.Quote.Tax.ToString("C")</span></div>
+                }
+                @if (Model.Quote.Fee > 0)
+                {
+                    <div class="d-flex justify-content-between mb-1"><span>Processing fee</span><span>@Model.Quote.Fee.ToString("C")</span></div>
+                }
+                <div class="d-flex justify-content-between fs-5 fw-bold mt-2"><span>Total (USD)</span><span>@Model.Quote.Total.ToString("C")</span></div>
+
+                <button type="submit" form="checkoutForm" class="btn btn-primary btn-lg w-100 mt-4" disabled="@(Model.MissingColumns.Count > 0)">Proceed to payment</button>
+                <p class="small text-muted mt-3 mb-0 d-flex gap-2">
+                    <span aria-hidden="true">&#128274;</span>
+                    <span>You'll enter your card on our payment processor's secure page. We never see or store your card number or security code.</span>
+                </p>
+                <p class="small text-muted mt-2 mb-0">Your billing name, address, the amount and order number will be shown <strong>read-only</strong> on the form you share.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,57 @@
+@page "{id:int?}"
+@model RecordFlow.Web.Areas.Admin.Pages.Companies.EditModel
+@{
+    ViewData["Title"] = Model.Id is null ? "Add company" : "Edit company";
+}
+<a class="small text-decoration-none" asp-page="./Index">&larr; All companies</a>
+<h1 class="h4 mt-2 mb-3">@ViewData["Title"]</h1>
+<form method="post" class="card border-0 shadow-sm narrow-page" novalidate>
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="Input.Name" class="form-label"></label>
+                <input asp-for="Input.Name" class="form-control" />
+                <span asp-validation-for="Input.Name" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.Phone" class="form-label"></label>
+                <input asp-for="Input.Phone" class="form-control" type="tel" />
+                <span asp-validation-for="Input.Phone" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-md-6"><label asp-for="Input.AddressLine1" class="form-label"></label><input asp-for="Input.AddressLine1" class="form-control" /></div>
+            <div class="col-md-6"><label asp-for="Input.AddressLine2" class="form-label"></label><input asp-for="Input.AddressLine2" class="form-control" /></div>
+            <div class="col-md-5"><label asp-for="Input.City" class="form-label"></label><input asp-for="Input.City" class="form-control" /></div>
+            <div class="col-md-4">
+                <label asp-for="Input.State" class="form-label"></label>
+                <select asp-for="Input.State" class="form-select">
+                    <option value="">—</option>
+                    @foreach (var s in UsStates.All) { <option value="@s.Key">@s.Value</option> }
+                </select>
+                <span asp-validation-for="Input.State" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Input.ZipCode" class="form-label"></label>
+                <input asp-for="Input.ZipCode" class="form-control" inputmode="numeric" />
+                <span asp-validation-for="Input.ZipCode" class="invalid-feedback d-block"></span>
+            </div>
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" asp-for="Input.IsActive" role="switch" />
+                    <label class="form-check-label" asp-for="Input.IsActive"></label>
+                </div>
+            </div>
+        </div>
+        @if (Model.Id is not null)
+        {
+            <p class="small text-muted mt-3 mb-0">@Model.UserCount user(s) belong to this company. The company address pre-fills their billing details at checkout.</p>
+        }
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-end gap-2">
+        <a class="btn btn-light" asp-page="./Index">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save company</button>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

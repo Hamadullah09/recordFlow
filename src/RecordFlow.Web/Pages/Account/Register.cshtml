@@ -1,0 +1,65 @@
+@page
+@model RegisterModel
+@{
+    ViewData["Title"] = "Create your account";
+    ViewData["AuthWide"] = true;
+}
+<h1 class="h3 mb-1">Create your account</h1>
+<p class="text-muted mb-4">It only takes a minute. Already registered? <a asp-page="./Login">Sign in</a></p>
+
+<form method="post" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Input.FullName" class="form-label"></label>
+            <input asp-for="Input.FullName" class="form-control form-control-lg" autocomplete="name" placeholder="Jane Smith" />
+            <span asp-validation-for="Input.FullName" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Input.UserId" class="form-label"></label>
+            <input asp-for="Input.UserId" class="form-control form-control-lg" autocomplete="username" placeholder="jsmith" />
+            <div class="form-text">You'll use this to sign in. 4–32 characters.</div>
+            <span asp-validation-for="Input.UserId" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Input.Email" class="form-label"></label>
+            <input asp-for="Input.Email" class="form-control form-control-lg" autocomplete="email" placeholder="jane@company.com" />
+            <span asp-validation-for="Input.Email" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Input.CompanyName" class="form-label"></label>
+            <input asp-for="Input.CompanyName" class="form-control form-control-lg" autocomplete="organization" placeholder="Acme Retail, Inc." />
+            <span asp-validation-for="Input.CompanyName" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Input.Password" class="form-label"></label>
+            <input asp-for="Input.Password" class="form-control form-control-lg" autocomplete="new-password" data-password-strength="#pwStrength" />
+            <div class="password-meter mt-2" id="pwStrength" aria-live="polite">
+                <div class="progress" role="presentation"><div class="progress-bar"></div></div>
+                <small class="text-muted meter-label">At least 10 characters with upper- and lowercase letters, a number and a symbol.</small>
+            </div>
+            <span asp-validation-for="Input.Password" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+            <input asp-for="Input.ConfirmPassword" class="form-control form-control-lg" autocomplete="new-password" />
+            <span asp-validation-for="Input.ConfirmPassword" class="invalid-feedback d-block"></span>
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input asp-for="Input.AcceptTerms" class="form-check-input" />
+                <label class="form-check-label" asp-for="Input.AcceptTerms">
+                    I agree to the <a asp-page="/Terms" target="_blank">Terms of Service</a> and <a asp-page="/Privacy" target="_blank">Privacy Notice</a>
+                </label>
+            </div>
+            <span asp-validation-for="Input.AcceptTerms" class="invalid-feedback d-block"></span>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Create account</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

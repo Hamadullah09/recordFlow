@@ -1,0 +1,13 @@
+@model RecordFlow.Web.Areas.Admin.PagerModel
+@if (Model.TotalPages > 1)
+{
+    var prev = new Dictionary<string, string?>(Model.RouteValues) { ["p"] = (Model.Page - 1).ToString() };
+    var next = new Dictionary<string, string?>(Model.RouteValues) { ["p"] = (Model.Page + 1).ToString() };
+    <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="small text-muted">Page @Model.Page of @Model.TotalPages · @Model.TotalCount total</span>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(Model.Page <= 1 ? "disabled" : "")"><a class="page-link" asp-all-route-data="prev">Previous</a></li>
+            <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")"><a class="page-link" asp-all-route-data="next">Next</a></li>
+        </ul>
+    </div>
+}

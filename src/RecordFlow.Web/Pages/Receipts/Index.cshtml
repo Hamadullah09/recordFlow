@@ -1,0 +1,63 @@
+@page "/receipts"
+@model RecordFlow.Web.Pages.Receipts.IndexModel
+@{
+    ViewData["Title"] = "Orders & receipts";
+}
+<div class="page-header mb-4">
+    <h1 class="h3 mb-1">Orders &amp; receipts</h1>
+    <p class="text-muted mb-0">Your payment history and confirmed records. These are kept after your working session ends.</p>
+</div>
+
+<div class="card border-0 shadow-sm">
+    @if (Model.Orders.Count == 0)
+    {
+        <div class="card-body empty-state text-center py-5">
+            <h2 class="h5">No orders yet</h2>
+            <p class="text-muted">Orders appear here after you check out a record.</p>
+            <a class="btn btn-primary" asp-page="/Dashboard">Go to dashboard</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 data-table responsive-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Order #</th>
+                        <th scope="col">Contact ID</th>
+                        <th scope="col">Store</th>
+                        <th scope="col" class="text-end">Amount</th>
+                        <th scope="col">Payment</th>
+                        <th scope="col">Confirmation</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model.Orders)
+                    {
+                        <tr>
+                            <td data-label="Date">@Time.Date(o.CreatedAtUtc)</td>
+                            <td data-label="Order #" class="font-monospace small">@o.OrderNumber</td>
+                            <td data-label="Contact ID">@o.ContactId</td>
+                            <td data-label="Store">@(o.StoreName ?? "—")</td>
+                            <td data-label="Amount" class="text-end">@o.Total.ToString("C")</td>
+                            <td data-label="Payment"><span class="badge rounded-pill @(o.Status == OrderStatus.Paid ? "text-bg-success" : o.Status is OrderStatus.Failed or OrderStatus.Canceled ? "text-bg-light border" : "text-bg-warning")">@o.Status.Name()</span></td>
+                            <td data-label="Confirmation" class="font-monospace small">@(o.ConfirmationNumber ?? "—")</td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-page="/Receipts/Details" asp-route-id="@o.PublicId">View</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.TotalPages > 1)
+        {
+            <div class="card-footer bg-white d-flex justify-content-end">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")"><a class="page-link" asp-route-p="@(Model.PageNumber - 1)">Previous</a></li>
+                    <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")"><a class="page-link" asp-route-p="@(Model.PageNumber + 1)">Next</a></li>
+                </ul>
+            </div>
+        }
+    }
+</div>

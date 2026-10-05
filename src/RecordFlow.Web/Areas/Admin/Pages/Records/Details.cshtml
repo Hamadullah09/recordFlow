@@ -1,0 +1,59 @@
+@page "{id:guid}"
+@model RecordFlow.Web.Areas.Admin.Pages.Records.DetailsModel
+@{
+    var r = Model.Record;
+    ViewData["Title"] = $"Record {r.ConfirmationNumber}";
+}
+<a class="small text-decoration-none" asp-page="./Index">&larr; All records</a>
+<h1 class="h4 mt-2 mb-3">@r.StoreName <span class="text-muted fw-normal">· Contact ID @r.ContactId</span></h1>
+<div class="row g-4">
+    <div class="col-xl-8">
+        @foreach (var grp in r.GetFields().GroupBy(f => f.Section))
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white"><h2 class="h6 mb-0">@grp.Key</h2></div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 verify-table responsive-table">
+                        <thead><tr><th>Field</th><th>Final value</th><th>Source</th></tr></thead>
+                        <tbody>
+                            @foreach (var f in grp)
+                            {
+                                <tr>
+                                    <th scope="row" data-label="Field">@f.Label</th>
+                                    <td data-label="Final value">@(string.IsNullOrWhiteSpace(f.Value) ? "—" : f.Value)</td>
+                                    <td data-label="Source" class="small text-muted">@f.Source</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-xl-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Confirmation</h2></div>
+            <div class="card-body">
+                <dl class="row small kv mb-0">
+                    <dt class="col-6">Confirmation #</dt><dd class="col-6 font-monospace">@r.ConfirmationNumber</dd>
+                    <dt class="col-6">Owner</dt><dd class="col-6">@(Model.OwnerName ?? "—")</dd>
+                    <dt class="col-6">Company</dt><dd class="col-6">@(r.CompanyName ?? "—")</dd>
+                    <dt class="col-6">Response</dt><dd class="col-6">@(r.Response ?? "—")</dd>
+                    <dt class="col-6">Record created</dt><dd class="col-6">@Time.DateAndTime(r.RecordCreatedAtUtc)</dd>
+                    <dt class="col-6">Recipient submitted</dt><dd class="col-6">@Time.DateAndTime(r.RecipientSubmittedAtUtc)</dd>
+                    <dt class="col-6">Confirmed by</dt><dd class="col-6">@r.ConfirmedByName</dd>
+                    <dt class="col-6">Confirmed / closed</dt><dd class="col-6">@Time.DateAndTime(r.ConfirmedAtUtc)</dd>
+                    @foreach (var c in r.GetAdminColumns())
+                    {
+                        <dt class="col-6">@c.Label</dt><dd class="col-6">@(c.Value ?? "—")</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+        @if (r.Order is not null)
+        {
+            <partial name="_OrderReadOnly" model="r.Order" />
+            <a class="btn btn-sm btn-outline-primary mt-2" asp-page="/Payments/Details" asp-route-id="@r.Order.PublicId">Payment details</a>
+        }
+    </div>
+</div>
