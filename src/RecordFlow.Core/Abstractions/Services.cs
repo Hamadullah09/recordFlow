@@ -39,8 +39,8 @@ public sealed class AppOptions
     /// </summary>
     public string? PublicBaseUrl { get; set; }
 
-    /// <summary>Windows or IANA time zone used to display dates (default U.S. Eastern).</summary>
-    public string TimeZone { get; set; } = "America/New_York";
+    /// <summary>Windows or IANA time zone used to display dates (default Pakistan Standard Time).</summary>
+    public string TimeZone { get; set; } = "Asia/Karachi";
 
     public string SupportEmail { get; set; } = "support@example.com";
 }

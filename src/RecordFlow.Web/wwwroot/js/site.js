@@ -93,6 +93,221 @@
         });
     });
 
+    // Call desk: clicking a store (or "Next call") opens its CSV details and starts the call timer (Time);
+    // "End call" sets Close Time and "Call again" starts a new call for the same store.
+    const pad = n => String(n).padStart(2, '0');
+    const formatDuration = ms => {
+        const s = Math.max(0, Math.floor(ms / 1000));
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+        return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
+    };
+    const callApi = (key, action, body) => api(`/api/workspace/records/${encodeURIComponent(key)}/call/${action}`, 'POST', body);
+
+    const recordModalEl = document.getElementById('recordModal');
+    let openRecord = null;
+    if (recordModalEl && window.bootstrap) {
+        const modal = bootstrap.Modal.getOrCreateInstance(recordModalEl);
+        const q = sel => recordModalEl.querySelector(sel);
+        const title = q('#recordModalTitle'), sub = q('.js-rm-sub'), statusBadge = q('.js-rm-status');
+        const startEl = q('.js-rm-start'), endEl = q('.js-rm-end'), durationEl = q('.js-rm-duration');
+        const loading = q('.js-rm-loading'), fieldsTitle = q('.js-rm-fields-title'), fieldsEl = q('.js-rm-fields'), purged = q('.js-rm-purged');
+        const historyTitle = q('.js-rm-history-title'), historyEl = q('.js-rm-history');
+        const endButton = q('.js-rm-end-call'), againButton = q('.js-rm-call-again'), actionButton = q('.js-rm-action');
+        const dialButton = q('.js-rm-dial'), dialNumber = q('.js-rm-dial-number');
+        const outcomeSection = q('.js-rm-outcome'), outcomeFor = q('.js-rm-outcome-for'), outcomeState = q('.js-rm-outcome-state');
+        const outcomeOptions = [...recordModalEl.querySelectorAll('.js-rm-outcome-option')], notesEl = q('.js-rm-notes');
+        const saveOutcomeButton = q('.js-rm-outcome-save'), clearOutcomeButton = q('.js-rm-outcome-clear');
+        let outcomeDirty = false;
+        let row = null, timer = null, startedAt = null, endedAt = null, changed = false, onCall = false, callCount = 0;
+
+        const tick = () => { durationEl.textContent = startedAt ? formatDuration((endedAt ?? new Date()) - startedAt) : '—'; };
+        const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) { e.className = cls; } if (text !== undefined) { e.textContent = text; } return e; };
+
+        function render(d) {
+            title.textContent = d.storeName || `Contact ID ${d.contactId}`;
+            sub.textContent = `Contact ID ${d.contactId}`;
+            statusBadge.textContent = d.statusLabel;
+            statusBadge.className = `badge rounded-pill ms-auto ${row.querySelector('.js-status-badge')?.className.replace('js-status-badge', '') ?? ''}`;
+            startEl.textContent = d.callStarted ? `${d.callStartedDate} ${d.callStartedText}` : '—';
+            endEl.textContent = d.callEnded ? d.callEndedText : '—';
+            startedAt = d.callStarted ? new Date(d.callStarted) : null;
+            endedAt = d.callEnded ? new Date(d.callEnded) : null;
+            onCall = !!startedAt && !endedAt;
+            callCount = d.calls.length;
+            dialButton.classList.toggle('d-none', !d.phone);
+            if (d.phone) {
+                dialButton.href = d.phone.tel;
+                dialButton.title = d.phone.label;
+                dialNumber.textContent = d.phone.number;
+            }
+            clearInterval(timer);
+            tick();
+            if (onCall) { timer = setInterval(tick, 1000); }
+            endButton.classList.toggle('d-none', !onCall);
+            endButton.disabled = false;
+            againButton.classList.toggle('d-none', onCall || d.calls.length === 0);
+            againButton.disabled = false;
+
+            fieldsEl.replaceChildren();
+            const hasValues = d.fields.some(f => f.value);
+            for (const f of d.fields) {
+                const dt = el('dt', 'col-sm-5 text-truncate', f.label);
+                dt.title = f.label;
+                const dd = el('dd', 'col-sm-7');
+                if (f.tel) {
+                    const link = el('a', 'dial-link js-dial', f.value);
+                    link.href = f.tel;
+                    link.setAttribute('aria-label', `Call ${f.label} ${f.value}`);
+                    dd.append(link);
+                } else {
+                    dd.append(f.value ? document.createTextNode(f.value) : el('span', 'text-muted fst-italic', 'missing'));
+                }
+                fieldsEl.append(dt, dd);
+            }
+            historyEl.replaceChildren();
+            for (const c of [...d.calls].reverse()) {
+                const li = el('li', c.outcome || c.notes ? 'has-detail' : '');
+                li.append(el('span', 'fw-semibold', `Call ${c.number}`), el('span', 'text-muted', c.started));
+                li.append(c.ended ? el('span', 'font-monospace', c.duration) : el('span', 'call-live', 'live'));
+                if (c.outcome || c.notes) {
+                    const detail = el('div', 'call-detail');
+                    if (c.outcome) { detail.append(el('span', `badge rounded-pill me-1 ${c.outcomeClass}`, c.outcome)); }
+                    if (c.notes) { detail.append(document.createTextNode(c.notes)); }
+                    li.append(detail);
+                }
+                historyEl.append(li);
+            }
+
+            // Outcome & notes always belong to the latest call.
+            const latest = d.calls[d.calls.length - 1];
+            outcomeSection.classList.toggle('d-none', !latest);
+            outcomeFor.textContent = latest ? `(call ${latest.number})` : '';
+            outcomeOptions.forEach(o => { o.checked = o.value === d.lastOutcome; });
+            notesEl.value = d.lastNotes ?? '';
+            outcomeDirty = false;
+            outcomeState.textContent = d.lastOutcome || d.lastNotes ? 'Saved' : 'No outcome yet';
+            const outcomeCell = row.querySelector('.js-call-outcome');
+            outcomeCell.replaceChildren(latest?.outcome
+                ? el('span', `badge rounded-pill ${latest.outcomeClass}`, latest.outcome)
+                : el('span', 'text-muted', '—'));
+            loading.classList.add('d-none');
+            fieldsTitle.classList.toggle('d-none', !hasValues);
+            fieldsEl.classList.toggle('d-none', !hasValues);
+            purged.classList.toggle('d-none', hasValues || !d.closed);
+            historyTitle.classList.toggle('d-none', d.calls.length === 0);
+
+            // Keep the queue row in sync with the latest call.
+            row.querySelector('.js-call-date').textContent = d.callStarted ? d.callStartedDate : row.querySelector('.js-call-date').textContent;
+            row.querySelector('.js-call-start').textContent = d.callStarted ? d.callStartedText : '—';
+            row.querySelector('.js-call-end').textContent = d.callEnded ? d.callEndedText : '—';
+            row.querySelector('.js-call-count').textContent = d.calls.length || '—';
+            row.classList.toggle('call-active', onCall);
+        }
+
+        async function run(action, body) {
+            try { render(await callApi(row.dataset.key, action, body)); changed = true; return true; }
+            catch (e) { modal.hide(); handleApiError(e); return false; }
+        }
+
+        // dial: the caller pressed a phone link, so make sure a call is running (a new one if the last call ended).
+        openRecord = async (tr, dial = false) => {
+            row = tr;
+            const action = row.querySelector('.js-row-action');
+            actionButton.textContent = action?.textContent.trim() || 'Open';
+            actionButton.classList.toggle('d-none', !action);
+            title.textContent = row.getAttribute('aria-label')?.replace('Open details for ', 'Contact ID ') ?? 'Record';
+            sub.textContent = '';
+            statusBadge.textContent = '';
+            [fieldsTitle, fieldsEl, purged, historyTitle, endButton, againButton, dialButton, outcomeSection].forEach(x => x.classList.add('d-none'));
+            outcomeDirty = false;
+            historyEl.replaceChildren();
+            loading.classList.remove('d-none');
+            modal.show();
+            if (await run('start') && dial && !onCall) { await run('again'); }
+        };
+
+        document.querySelectorAll('.js-record-row').forEach(tr => {
+            tr.addEventListener('click', e => {
+                // Controls inside the row (Response, editable columns, Proceed) keep their own behavior.
+                if (e.target.closest('a, button, select, input, textarea, label, form')) { return; }
+                openRecord(tr);
+            });
+            tr.querySelector('.js-dial')?.addEventListener('click', () => openRecord(tr, true));   // the tel: link still opens the dialer
+            tr.addEventListener('keydown', e => {
+                if (e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRecord(tr); }
+            });
+        });
+
+        const saveOutcome = () => run('outcome', { outcome: outcomeOptions.find(o => o.checked)?.value ?? null, notes: notesEl.value });
+        const markDirty = () => { outcomeDirty = true; outcomeState.textContent = 'Unsaved changes'; };
+        outcomeOptions.forEach(o => o.addEventListener('change', markDirty));
+        notesEl.addEventListener('input', markDirty);
+        clearOutcomeButton.addEventListener('click', () => { outcomeOptions.forEach(o => { o.checked = false; }); notesEl.value = ''; markDirty(); });
+        saveOutcomeButton.addEventListener('click', async () => {
+            saveOutcomeButton.disabled = true;
+            if (await saveOutcome()) { toast('Outcome saved'); }
+            saveOutcomeButton.disabled = false;
+        });
+
+        // Unsaved outcome/notes are saved to the current call before it ends or a new call starts.
+        endButton.addEventListener('click', async () => {
+            endButton.disabled = true;
+            if (outcomeDirty && !(await saveOutcome())) { return; }
+            if (await run('end')) { toast('Call ended'); }
+        });
+        againButton.addEventListener('click', async () => {
+            againButton.disabled = true;
+            if (outcomeDirty && !(await saveOutcome())) { return; }
+            if (await run('again')) { toast('New call started'); }
+        });
+        actionButton.addEventListener('click', () => row?.querySelector('.js-row-action')?.click());
+        // Dialing from the popup (store phone button or any phone number) starts a call when none is running.
+        recordModalEl.addEventListener('click', e => {
+            if (!e.target.closest('.js-dial') || !row || onCall) { return; }
+            run(callCount ? 'again' : 'start');
+        });
+        recordModalEl.addEventListener('hidden.bs.modal', async () => {
+            clearInterval(timer);
+            timer = null;
+            if (outcomeDirty && row) { await saveOutcome(); }
+            // Refresh the stats and the active-call banner after calls changed.
+            if (changed) { window.location.reload(); }
+        });
+    }
+
+    const findRow = key => [...document.querySelectorAll('.js-record-row')].find(tr => tr.dataset.key === key);
+
+    // "Next call": open the next store straight away when it is on this page.
+    document.querySelectorAll('.js-next-call').forEach(link => link.addEventListener('click', e => {
+        const tr = findRow(link.dataset.key);
+        if (tr && openRecord) { e.preventDefault(); openRecord(tr); }
+    }));
+    const requested = new URLSearchParams(window.location.search).get('call');
+    if (requested && openRecord) {
+        const tr = findRow(requested);
+        if (tr) { openRecord(tr); }
+        history.replaceState(null, '', window.location.pathname + window.location.search.replace(/([?&])call=[^&]*&?/, '$1').replace(/[?&]$/, ''));
+    }
+
+    // Active call banner: live duration, open the store, end the call.
+    const activeCall = document.querySelector('.active-call');
+    if (activeCall) {
+        const started = new Date(activeCall.dataset.started);
+        const out = activeCall.querySelector('.js-active-duration');
+        const update = () => { out.textContent = formatDuration(new Date() - started); };
+        update();
+        setInterval(update, 1000);
+        activeCall.querySelector('.js-active-open').addEventListener('click', () => {
+            const tr = findRow(activeCall.dataset.key);
+            if (tr && openRecord) { openRecord(tr); } else { window.location.href = `/dashboard?call=${encodeURIComponent(activeCall.dataset.key)}`; }
+        });
+        activeCall.querySelector('.js-active-end').addEventListener('click', async e => {
+            e.currentTarget.disabled = true;
+            try { await callApi(activeCall.dataset.key, 'end'); window.location.reload(); }
+            catch (err) { e.currentTarget.disabled = false; handleApiError(err); }
+        });
+    }
+
     // CSV upload: show file name and check type/size before sending.
     const uploadForm = document.getElementById('uploadForm');
     if (uploadForm) {

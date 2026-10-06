@@ -513,3 +513,62 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006143323_AddCallLogs'
+)
+BEGIN
+    CREATE TABLE [CallLogs] (
+        [Id] bigint NOT NULL IDENTITY,
+        [PublicId] uniqueidentifier NOT NULL,
+        [UserId] nvarchar(450) NOT NULL,
+        [ContactId] nvarchar(100) NOT NULL,
+        [StoreName] nvarchar(250) NULL,
+        [SourceFile] nvarchar(100) NULL,
+        [StartedAtUtc] datetime2 NOT NULL,
+        [EndedAtUtc] datetime2 NULL,
+        [Outcome] nvarchar(20) NULL,
+        [Notes] nvarchar(1000) NULL,
+        [UpdatedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_CallLogs] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_CallLogs_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006143323_AddCallLogs'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_CallLogs_PublicId] ON [CallLogs] ([PublicId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006143323_AddCallLogs'
+)
+BEGIN
+    CREATE INDEX [IX_CallLogs_StartedAtUtc] ON [CallLogs] ([StartedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006143323_AddCallLogs'
+)
+BEGIN
+    CREATE INDEX [IX_CallLogs_UserId_ContactId_StartedAtUtc] ON [CallLogs] ([UserId], [ContactId], [StartedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006143323_AddCallLogs'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261006143323_AddCallLogs', N'10.0.12');
+END;
+
+COMMIT;
+GO
+

@@ -1,25 +1,131 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Team dashboard";
+    var kpis = new (string Icon, string Tone, string Label, string Value, string Sub)[]
+    {
+        ("phone", "kpi-green", "Calls today", Model.CallsToday.ToString(), $"{Model.CallsWeek} in the last 7 days"),
+        ("users", "kpi-violet", "Active callers", Model.ActiveCallers.ToString(), $"of {Model.UserCount} users · last 7 days"),
+        ("star", "kpi-amber", "Interested rate", Model.InterestedRate is { } rate ? $"{rate:0}%" : "—", "of calls with an outcome · 30 days"),
+        ("clock", "kpi-sky", "Average call", IndexModel.Duration(Model.AverageCallSeconds), "last 30 days"),
+        ("check-circle", "", "Completed this month", Model.CompletedMonth.ToString(), $"{Model.PendingOrders} payment(s) in progress"),
+        ("card", "kpi-slate", "Revenue this month", Model.RevenueMonth.ToString("C0"), $"{Model.PaidOrdersMonth} paid order(s)"),
+    };
 }
-<div class="row g-3 mb-4">
-    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
-        <div class="stat-label">Users</div><div class="stat-value">@Model.UserCount</div>
-        <div class="small text-muted">@Model.ActiveUsers30d active in the last 30 days</div>
-    </div></div></div>
-    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
-        <div class="stat-label">Revenue this month</div><div class="stat-value">@Model.RevenueMonth.ToString("C0")</div>
-        <div class="small text-muted">@Model.PaidOrdersMonth paid order@(Model.PaidOrdersMonth == 1 ? "" : "s")</div>
-    </div></div></div>
-    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
-        <div class="stat-label">Finalized records</div><div class="stat-value">@Model.FinalizedCount</div>
-        <div class="small text-muted">All time</div>
-    </div></div></div>
-    <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm stat-card h-100"><div class="card-body">
-        <div class="stat-label">Payments in progress</div><div class="stat-value">@Model.PendingOrders</div>
-        <div class="small text-muted">Pending or processing</div>
-    </div></div></div>
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <span class="eyebrow">Admin</span>
+        <h1 class="h3 mb-1 mt-1">Team dashboard</h1>
+        <p class="text-muted mb-0">How your callers are doing — calls, outcomes and completed sales.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary" asp-page="/Calls/Index"><partial name="_Icon" model="@("list")" /> Call log</a>
+        <a class="btn btn-primary" asp-page="/Calls/Index" asp-page-handler="Export"><partial name="_Icon" model="@("upload")" /> Export calls</a>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3 mb-4">
+    @foreach (var k in kpis)
+    {
+        <div class="col">
+            <div class="card border-0 shadow-sm stat-card h-100"><div class="card-body kpi">
+                <span class="kpi-icon @k.Tone"><partial name="_Icon" model="@k.Icon" /></span>
+                <div class="min-w-0">
+                    <div class="stat-label">@k.Label</div>
+                    <div class="stat-value">@k.Value</div>
+                    <div class="stat-sub">@k.Sub</div>
+                </div>
+            </div></div>
+        </div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Call outcomes <span class="text-muted fw-normal">· last 30 days</span></h2>
+                <span class="small text-muted">@Model.OutcomeTotal logged</span>
+            </div>
+            <div class="card-body outcome-bars">
+                @if (Model.OutcomeTotal == 0)
+                {
+                    <p class="text-muted mb-0">No outcomes logged yet. They appear here as callers save them on the call desk.</p>
+                }
+                else
+                {
+                    @foreach (var (outcome, count) in Model.Outcomes)
+                    {
+                        var pct = count * 100 / Model.OutcomeTotal;
+                        <div class="bar-row">
+                            <a class="text-decoration-none text-body text-truncate" asp-page="/Calls/Index" asp-route-outcome="@outcome">@outcome.Name()</a>
+                            <div class="progress" role="progressbar" aria-label="@outcome.Name()" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar @(outcome switch { CallOutcome.Interested => "bg-success", CallOutcome.CallBack => "bg-warning", CallOutcome.WrongNumber => "bg-danger", CallOutcome.NotInterested => "bg-secondary", _ => "bg-info" })" data-progress="@pct"></div>
+                            </div>
+                            <span class="text-end fw-semibold">@count</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0">Top callers <span class="text-muted fw-normal">· last 30 days</span></h2>
+                <a class="small" asp-page="/Users/Index">All users</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 data-table responsive-table">
+                    <thead><tr><th>#</th><th>Caller</th><th class="text-end">Calls</th><th class="text-end">Interested</th><th class="text-end">Completed</th><th class="text-end">Avg call</th></tr></thead>
+                    <tbody>
+                        @for (var i = 0; i < Model.TopCallers.Count; i++)
+                        {
+                            var c = Model.TopCallers[i];
+                            <tr>
+                                <td data-label="#"><span class="leaderboard-rank @(i == 0 ? "top" : "")">@(i + 1)</span></td>
+                                <td data-label="Caller" class="fw-semibold">@c.Name</td>
+                                <td data-label="Calls" class="text-end">@c.Calls</td>
+                                <td data-label="Interested" class="text-end text-success fw-semibold">@c.Interested</td>
+                                <td data-label="Completed" class="text-end">@c.Completed</td>
+                                <td data-label="Avg call" class="text-end font-monospace">@IndexModel.Duration(c.AverageSeconds)</td>
+                            </tr>
+                        }
+                        @if (Model.TopCallers.Count == 0) { <tr><td colspan="6" class="text-muted text-center py-4">No calls in the last 30 days.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0">Latest calls</h2>
+        <a class="small" asp-page="/Calls/Index">Open call log</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0 data-table responsive-table">
+            <thead><tr><th>Started</th><th>Caller</th><th>Store</th><th>Duration</th><th>Outcome</th><th>Notes</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.RecentCalls)
+                {
+                    <tr>
+                        <td data-label="Started">@Time.DateAndTime(c.StartedAtUtc)</td>
+                        <td data-label="Caller">@(c.User?.FullName ?? "—")</td>
+                        <td data-label="Store">@(c.StoreName ?? c.ContactId) <span class="text-muted small">@c.ContactId</span></td>
+                        <td data-label="Duration" class="font-monospace">@(c.EndedAtUtc is null ? "live" : IndexModel.Duration(c.Duration?.TotalSeconds))</td>
+                        <td data-label="Outcome">
+                            @if (c.Outcome is { } o) { <span class="badge rounded-pill @RecordFlow.Web.Pages.DashboardModel.OutcomeBadgeClass(o)">@o.Name()</span> }
+                            else { <span class="text-muted">—</span> }
+                        </td>
+                        <td data-label="Notes" class="call-notes-cell">@(c.Notes ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.RecentCalls.Count == 0) { <tr><td colspan="6" class="text-muted text-center py-4">No calls yet.</td></tr> }
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -31,7 +137,7 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 data-table">
-                    <thead><tr><th>Order</th><th>Customer</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Order</th><th>Caller</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
                     <tbody>
                         @foreach (var o in Model.RecentOrders)
                         {

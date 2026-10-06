@@ -4,17 +4,19 @@
     ViewData["Title"] = "Orders & receipts";
 }
 <div class="page-header mb-4">
-    <h1 class="h3 mb-1">Orders &amp; receipts</h1>
-    <p class="text-muted mb-0">Your payment history and confirmed records. These are kept after your working session ends.</p>
+    <span class="eyebrow">Sales</span>
+    <h1 class="h3 mb-1 mt-1">Orders &amp; receipts</h1>
+    <p class="text-muted mb-0">Every store you closed: payment status, confirmation number and receipt. Kept after your working session ends.</p>
 </div>
 
 <div class="card border-0 shadow-sm">
     @if (Model.Orders.Count == 0)
     {
         <div class="card-body empty-state text-center py-5">
-            <h2 class="h5">No orders yet</h2>
-            <p class="text-muted">Orders appear here after you check out a record.</p>
-            <a class="btn btn-primary" asp-page="/Dashboard">Go to dashboard</a>
+            <div class="icon-circle icon-primary mx-auto mb-3"><partial name="_Icon" model="@("receipt")" /></div>
+            <h2 class="h5 fw-bold">No orders yet</h2>
+            <p class="text-muted">An order appears here when you confirm a store's record and it goes to payment.</p>
+            <a class="btn btn-call" asp-page="/Dashboard"><partial name="_Icon" model="@("headset")" /> Back to the call desk</a>
         </div>
     }
     else

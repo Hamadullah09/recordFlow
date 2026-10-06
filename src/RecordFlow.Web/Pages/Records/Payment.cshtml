@@ -2,75 +2,46 @@
 @model RecordFlow.Web.Pages.Records.PaymentModel
 @{
     var order = Model.Order!;
-    var paid = order.Status == OrderStatus.Paid;
-    ViewData["Title"] = paid ? "Payment successful" : "Payment status";
+    var processing = order.Status == OrderStatus.Processing;
+    ViewData["Title"] = "Payment status";
 }
-<partial name="_RecordStepper" model="new StepperModel(Model.Record, 3)" />
+<partial name="_RecordStepper" model="new StepperModel(Model.Record, 4)" />
 
 <div class="narrow-page mx-auto">
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4 p-md-5 text-center">
-            @switch (order.Status)
+            <div class="icon-circle icon-primary icon-lg mx-auto mb-3" aria-hidden="true">&#8987;</div>
+            @if (processing)
             {
-                case OrderStatus.Paid:
-                    <div class="icon-circle icon-success icon-lg mx-auto mb-3" aria-hidden="true">&#10003;</div>
-                    <h1 class="h3 mb-2">Payment successful</h1>
-                    <p class="text-muted mb-4">Thank you! Your payment of <strong>@order.Total.ToString("C")</strong> was received.</p>
-                    break;
-                case OrderStatus.Processing:
-                    <div class="icon-circle icon-primary icon-lg mx-auto mb-3" aria-hidden="true">&#8987;</div>
-                    <h1 class="h3 mb-2">Payment processing</h1>
-                    <p class="text-muted mb-4">Bank payments usually take 3–5 business days to clear. You can continue once the payment is confirmed.</p>
-                    break;
-                case OrderStatus.Pending:
-                    <div class="icon-circle icon-primary icon-lg mx-auto mb-3" aria-hidden="true">&#8987;</div>
-                    <h1 class="h3 mb-2">Waiting for payment</h1>
-                    <p class="text-muted mb-4">We haven't received confirmation of this payment yet. If you closed the payment page, start checkout again.</p>
-                    break;
-                default:
-                    <div class="icon-circle icon-danger icon-lg mx-auto mb-3" aria-hidden="true">!</div>
-                    <h1 class="h3 mb-2">Payment not completed</h1>
-                    <p class="text-muted mb-4">@(order.FailureReason ?? "The payment was not completed.") You have not been charged for this attempt.</p>
-                    break;
+                <h1 class="h3 mb-2">Payment processing</h1>
+                <p class="text-muted mb-4">Bank payments usually take 3–5 business days to clear. The record is completed automatically once the payment is confirmed.</p>
+            }
+            else
+            {
+                <h1 class="h3 mb-2">Waiting for payment</h1>
+                <p class="text-muted mb-4">The record is confirmed and locked. We haven't received the payment yet — if the payment page was closed, open it again below.</p>
             }
 
             <dl class="row text-start small receipt-grid mx-auto mb-4">
                 <dt class="col-6">Order number</dt><dd class="col-6 font-monospace">@order.OrderNumber</dd>
                 <dt class="col-6">Contact ID</dt><dd class="col-6">@order.ContactId</dd>
+                <dt class="col-6">Billing name</dt><dd class="col-6">@order.BillingName</dd>
                 <dt class="col-6">Amount</dt><dd class="col-6">@order.Total.ToString("C")</dd>
                 <dt class="col-6">Status</dt><dd class="col-6">@order.Status.Name()</dd>
-                @if (paid)
-                {
-                    <dt class="col-6">Transaction ID</dt><dd class="col-6 font-monospace text-break">@order.ProviderPaymentId</dd>
-                    @if (order.CardBrand is not null)
-                    {
-                        <dt class="col-6">Paid with</dt><dd class="col-6 text-capitalize">@order.CardBrand •••• @order.CardLast4</dd>
-                    }
-                    <dt class="col-6">Date</dt><dd class="col-6">@Time.DateAndTime(order.PaidAtUtc)</dd>
-                }
             </dl>
 
-            @if (paid)
-            {
-                <form method="post" asp-page-handler="Generate">
-                    <button type="submit" class="btn btn-primary btn-lg px-5">Proceed &rarr; Generate form</button>
-                </form>
-                <p class="small text-muted mt-3 mb-0">The form is filled in automatically from your CSV. Missing information is highlighted so it can be completed.</p>
-            }
-            else if (order.Status is OrderStatus.Processing or OrderStatus.Pending)
-            {
-                <div class="d-flex flex-wrap gap-2 justify-content-center">
-                    <a class="btn btn-primary btn-lg" asp-page="/Records/Payment" asp-route-key="@Model.Key">Refresh status</a>
-                    @if (order.Status == OrderStatus.Pending)
-                    {
-                        <a class="btn btn-outline-secondary btn-lg" asp-page="/Records/Checkout" asp-route-key="@Model.Key">Start checkout again</a>
-                    }
-                </div>
-            }
-            else
-            {
-                <a class="btn btn-primary btn-lg px-5" asp-page="/Records/Checkout" asp-route-key="@Model.Key">Try again</a>
-            }
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <a class="btn btn-outline-primary btn-lg" asp-page="/Records/Payment" asp-route-key="@Model.Key">Refresh status</a>
+                @if (!processing)
+                {
+                    <form method="post" asp-page-handler="Retry">
+                        <button type="submit" class="btn btn-primary btn-lg">Open payment page</button>
+                    </form>
+                    <form method="post" asp-page-handler="Cancel" data-confirm="Cancel this payment and unlock the record for editing?">
+                        <button type="submit" class="btn btn-link btn-lg">Cancel &amp; edit</button>
+                    </form>
+                }
+            </div>
         </div>
     </div>
 </div>

@@ -21,6 +21,9 @@ public abstract class RecordPageModel(RecordWorkflowService workflow) : PortalPa
     public WorkingRecord Record => Ctx.Record;
     public Order? Order => Ctx.Order;
 
+    /// <summary>The store's number to dial (click-to-call), when the call list has one.</summary>
+    public RecordFlow.Core.Services.PhoneLink? Phone => RecordFlow.Core.Services.PhoneNumbers.Primary(Record, Ctx.Workspace.Headers);
+
     protected async Task<bool> LoadAsync(CancellationToken ct)
     {
         var ctx = await workflow.LoadRecordAsync(UserId, Key, ct);
@@ -38,15 +41,17 @@ public abstract class RecordPageModel(RecordWorkflowService workflow) : PortalPa
     /// <summary>Sends the user to the page for the record's current step.</summary>
     protected IActionResult RedirectToCurrentStep() => Record.Status switch
     {
-        RecordStatus.Imported or RecordStatus.CheckoutStarted => RedirectToPage("/Records/Checkout", new { key = Key }),
-        RecordStatus.AwaitingPayment or RecordStatus.Paid => RedirectToPage("/Records/Payment", new { key = Key }),
+        RecordStatus.Imported => RedirectToPage("/Dashboard"),
         RecordStatus.FormGenerated or RecordStatus.SharedPending => RedirectToPage("/Records/Form", new { key = Key }),
         RecordStatus.ReadyForVerification => RedirectToPage("/Records/Verify", new { key = Key }),
+        RecordStatus.AwaitingPayment => RedirectToPage("/Records/Payment", new { key = Key }),
         _ when Record.OrderPublicId is Guid id => RedirectToPage("/Receipts/Details", new { id }),
         _ => RedirectToPage("/Dashboard"),
     };
 }
 
 public sealed record StepperModel(WorkingRecord Record, int Current);
+
+public sealed record PriceSummaryModel(RecordFlow.Core.Services.PricingSettings Pricing, RecordFlow.Core.Services.PriceQuote Quote, string Note);
 
 public sealed record FieldInputModel(WorkingField Field, string? Value, string? Error, bool ReadOnly, string NamePrefix = "Values");

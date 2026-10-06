@@ -1,13 +1,13 @@
 @page
 @model RecordFlow.Web.Areas.Admin.Pages.Records.IndexModel
 @{
-    ViewData["Title"] = "Finalized records";
+    ViewData["Title"] = "Completed records";
 }
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-    <h1 class="h4 mb-0">Finalized records</h1>
+    <h1 class="h4 mb-0">Completed records</h1>
     <a class="btn btn-outline-primary" asp-page-handler="Export" asp-all-route-data="Model.RouteValues()">Export CSV</a>
 </div>
-<p class="text-muted mb-3">Confirmed business records. Original CSV files are never stored — only the final, verified values.</p>
+<p class="text-muted mb-3">Records your callers verified, confirmed and got paid for. Original call lists are never stored — only the final, verified values.</p>
 
 <form method="get" class="card border-0 shadow-sm mb-3">
     <div class="card-body row g-2 align-items-end">

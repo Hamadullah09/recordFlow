@@ -1,0 +1,63 @@
+@page
+@model RecordFlow.Web.Areas.Admin.Pages.Calls.IndexModel
+@{
+    ViewData["Title"] = "Call log";
+    string Duration(TimeSpan? d) => d is { } x ? RecordFlow.Web.Pages.DashboardModel.FormatDuration(x) : "—";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+    <h1 class="h4 mb-0">Call log</h1>
+    <a class="btn btn-outline-primary" asp-page-handler="Export" asp-all-route-data="Model.RouteValues()">Export CSV</a>
+</div>
+<p class="text-muted mb-3">Every call made from the call desk, with its outcome and notes. Times are in @Time.Abbreviation.</p>
+
+<form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-4"><label class="form-label small" for="q">Search</label><input class="form-control" id="q" name="q" value="@Model.Q" placeholder="Contact ID, store, caller or notes" /></div>
+        <div class="col-md-2">
+            <label class="form-label small" for="outcome">Outcome</label>
+            <select class="form-select" id="outcome" name="outcome">
+                <option value="">All</option>
+                @foreach (var o in Enum.GetValues<CallOutcome>())
+                {
+                    <option value="@o" selected="@(Model.Outcome == o)">@o.Name()</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="from">From</label><input class="form-control" type="date" id="from" name="from" value="@Model.From?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-6 col-md-2"><label class="form-label small" for="to">to</label><input class="form-control" type="date" id="to" name="to" value="@Model.To?.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filter</button></div>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 data-table responsive-table">
+            <thead><tr><th>Started</th><th>Duration</th><th>Caller</th><th>Contact ID</th><th>Store</th><th>Outcome</th><th>Notes</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.Calls)
+                {
+                    <tr>
+                        <td data-label="Started">@Time.DateAndTime(c.StartedAtUtc)</td>
+                        <td data-label="Duration" class="font-monospace">@(c.EndedAtUtc is null ? "in progress" : Duration(c.Duration))</td>
+                        <td data-label="Caller">@c.Caller</td>
+                        <td data-label="Contact ID">@c.ContactId</td>
+                        <td data-label="Store">@(c.StoreName ?? "—")</td>
+                        <td data-label="Outcome">
+                            @if (c.Outcome is { } o)
+                            {
+                                <span class="badge rounded-pill @RecordFlow.Web.Pages.DashboardModel.OutcomeBadgeClass(o)">@o.Name()</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td data-label="Notes" class="call-notes-cell">@(c.Notes ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Calls.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-4">No calls logged yet.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    <partial name="_Pager" model="Model.Pager" />
+</div>

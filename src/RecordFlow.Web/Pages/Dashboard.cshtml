@@ -1,33 +1,44 @@
 @page "/dashboard"
 @model DashboardModel
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Call desk";
     var ws = Model.Workspace;
     var firstName = User.GetDisplayName().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "there";
     string IdleText(TimeSpan t) => t.TotalMinutes >= 120 ? $"{t.TotalHours:0.#} hours" : $"{t.TotalMinutes:0} minutes";
+    var next = Model.NextRecord;
 }
 
-<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
     <div>
-        <h1 class="h3 mb-1">Dashboard</h1>
-        <p class="text-muted mb-0">Welcome back, @firstName.</p>
+        <span class="eyebrow">@Model.TodayLabel</span>
+        <h1 class="h3 mb-1 mt-1">Good to see you, @firstName</h1>
+        <p class="text-muted mb-0">@(ws is null ? "Upload a call list to start calling." : next is null ? "Every store on this list has been called — nice work." : $"Next up: {next.StoreName ?? next.ContactId}.")</p>
     </div>
-    <button type="button" class="btn btn-primary btn-lg px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
-        <span aria-hidden="true">&#8679;</span> Upload CSV
-    </button>
+    <div class="d-flex flex-wrap gap-2">
+        @if (next is not null)
+        {
+            <a class="btn btn-call btn-lg px-4 js-next-call" data-key="@next.Key" asp-page="/Dashboard" asp-route-p="@Model.NextRecordPage" asp-route-call="@next.Key">
+                <partial name="_Icon" model="@("phone")" /> Next call
+            </a>
+        }
+        <button type="button" class="btn @(ws is null ? "btn-primary" : "btn-outline-primary") btn-lg px-4" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <partial name="_Icon" model="@("upload")" /> Upload call list
+        </button>
+    </div>
 </div>
 
 @if (ws is null)
 {
     <div class="card border-0 shadow-sm">
         <div class="card-body empty-state text-center py-5 px-4">
-            <div class="icon-circle icon-primary mx-auto mb-3" aria-hidden="true">&#128196;</div>
-            <h2 class="h4">Upload a CSV to get started</h2>
+            <div class="icon-circle icon-lg icon-primary mx-auto mb-3"><partial name="_Icon" model="@("headset")" /></div>
+            <h2 class="h4 fw-bold">Upload your call list to start calling</h2>
             <p class="text-muted mx-auto mb-4 empty-text">
-                Your file is processed for this working session only. It is never saved to our database, and it's
-                removed automatically when you sign out or after @IdleText(Model.IdleTimeout) of inactivity.
+                A CSV of the stores you want to call. It's processed for this working session only — never saved to our
+                database — and removed automatically when you sign out or after @IdleText(Model.IdleTimeout) of inactivity.
+                Your calls, outcomes and notes are kept in your call log.
             </p>
-            <button type="button" class="btn btn-primary btn-lg px-5" data-bs-toggle="modal" data-bs-target="#uploadModal">Upload CSV</button>
+            <button type="button" class="btn btn-primary btn-lg px-5" data-bs-toggle="modal" data-bs-target="#uploadModal"><partial name="_Icon" model="@("upload")" /> Upload CSV</button>
             <p class="small text-muted mt-4 mb-0">
                 Typical columns: Contact ID, Store ID, Store Name, Address Line 1, ZIP Code, Store Phone Number, Owner Name,
                 Fire Station Number, Alarm Service ID … Missing columns are fine.
@@ -36,23 +47,47 @@
     </div>
 
     <ol class="workflow-strip list-unstyled row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mt-4">
-        <li class="col"><div class="wf-step"><span>1</span>Upload CSV</div></li>
-        <li class="col"><div class="wf-step"><span>2</span>Select record</div></li>
-        <li class="col"><div class="wf-step"><span>3</span>Checkout</div></li>
-        <li class="col"><div class="wf-step"><span>4</span>Share form</div></li>
-        <li class="col"><div class="wf-step"><span>5</span>Verify</div></li>
+        <li class="col"><div class="wf-step"><span>1</span>Upload call list</div></li>
+        <li class="col"><div class="wf-step"><span>2</span>Call the store</div></li>
+        <li class="col"><div class="wf-step"><span>3</span>Form &amp; share</div></li>
+        <li class="col"><div class="wf-step"><span>4</span>Verify &amp; confirm</div></li>
+        <li class="col"><div class="wf-step"><span>5</span>Payment</div></li>
         <li class="col"><div class="wf-step"><span>6</span>Receipt</div></li>
     </ol>
 }
 else
 {
+    var stats = new (string Icon, string Tone, string Label, string Value, string? Extra)[]
+    {
+        ("phone", "kpi-green", "Calls today", Model.CallsToday.ToString(), null),
+        ("clock", "kpi-sky", "Average call", Model.AverageCall is { } avg ? DashboardModel.FormatDuration(avg) : "—", null),
+        ("inbox", "kpi-slate", "Not called yet", Model.NotCalledCount.ToString(), null),
+        ("star", "kpi-amber", "Interested", Model.InterestedCount.ToString(), null),
+        ("repeat", "kpi-violet", "Follow-ups", Model.FollowUpCount.ToString(), "Call back, no answer or voicemail"),
+        ("check-circle", "", "Completed", Model.CompletedCount.ToString(), $"of {Model.TotalCount}"),
+    };
+    <div class="row row-cols-2 row-cols-md-3 row-cols-xxl-6 g-3 mb-3 caller-stats">
+        @foreach (var s in stats)
+        {
+            <div class="col">
+                <div class="card border-0 shadow-sm h-100"><div class="card-body kpi" title="@(s.Extra ?? "")">
+                    <span class="kpi-icon @s.Tone"><partial name="_Icon" model="@s.Icon" /></span>
+                    <div class="min-w-0">
+                        <div class="stat-label">@s.Label</div>
+                        <div class="stat-value">@s.Value@if (s.Label == "Completed") {<span class="fs-6 text-muted fw-semibold"> @s.Extra</span>}</div>
+                    </div>
+                </div></div>
+            </div>
+        }
+    </div>
+
     <div class="card border-0 shadow-sm mb-3 session-bar">
-        <div class="card-body d-flex flex-wrap align-items-center gap-3">
-            <div class="icon-circle icon-primary icon-sm" aria-hidden="true">&#128196;</div>
+        <div class="card-body d-flex flex-wrap align-items-center gap-3 py-3">
+            <div class="icon-circle icon-primary icon-sm"><partial name="_Icon" model="@("list")" /></div>
             <div class="flex-grow-1 min-w-0">
-                <div class="fw-semibold text-truncate">@ws.FileName</div>
+                <div class="fw-semibold text-truncate">Call list: @ws.FileName</div>
                 <div class="small text-muted">
-                    @Model.TotalCount record@(Model.TotalCount == 1 ? "" : "s") · uploaded @Time.DateAndTime(ws.CreatedAtUtc) ·
+                    @Model.TotalCount store@(Model.TotalCount == 1 ? "" : "s") · uploaded @Time.DateAndTime(ws.CreatedAtUtc) ·
                     temporary session, ends after @IdleText(Model.IdleTimeout) of inactivity
                 </div>
             </div>
@@ -62,11 +97,29 @@ else
                     <div class="progress-bar bg-success" data-progress="@(Model.TotalCount == 0 ? 0 : Model.CompletedCount * 100 / Model.TotalCount)"></div>
                 </div>
             </div>
-            <form method="post" asp-page-handler="EndSession" data-confirm="End this working session? All temporary CSV data and unfinished records will be deleted. Completed records and receipts are kept.">
+            <form method="post" asp-page-handler="EndSession" data-confirm="End this working session? All temporary CSV data and unfinished records will be deleted. Completed records, receipts and your call log are kept.">
                 <button type="submit" class="btn btn-outline-danger">End session</button>
             </form>
         </div>
     </div>
+
+    @if (Model.ActiveCall is { } active)
+    {
+        <div class="active-call d-flex flex-wrap align-items-center gap-3 mb-3" role="status"
+             data-key="@active.Key" data-started="@active.LastCall!.StartedAtUtc.ToString("o")">
+            <span class="live-dot" aria-hidden="true"></span>
+            <div class="flex-grow-1 min-w-0">
+                <div class="fw-semibold text-truncate">On call: @(active.StoreName ?? active.ContactId) <span class="fw-normal">· Contact ID @active.ContactId</span></div>
+                <div class="small">Started @Time.Time(active.LastCall.StartedAtUtc) · <span class="font-monospace js-active-duration">—</span></div>
+            </div>
+            @if (Model.PhoneFor(active) is { } activePhone)
+            {
+                <a class="btn btn-success" href="@activePhone.TelUri" aria-label="Dial @activePhone.Number"><partial name="_Icon" model="@("phone")" /> @activePhone.Number</a>
+            }
+            <button type="button" class="btn btn-light js-active-open">Open details</button>
+            <button type="button" class="btn btn-danger js-active-end">End call</button>
+        </div>
+    }
 
     @if (ws.Warnings.Count > 0)
     {
@@ -80,7 +133,7 @@ else
 
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-0 pt-3 pb-0 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-            <h2 class="h5 mb-0">Records</h2>
+            <h2 class="h5 mb-0">Call queue</h2>
             <form method="get" class="search-form d-flex gap-2" role="search">
                 <label for="q" class="visually-hidden">Search records</label>
                 <input id="q" name="q" value="@Model.Query" class="form-control" type="search" placeholder="Search Contact ID or store…" />
@@ -102,11 +155,14 @@ else
                                 <th scope="col">Date</th>
                                 <th scope="col">Time</th>
                                 <th scope="col">Contact ID</th>
-                                <th scope="col">Response</th>
                                 @foreach (var c in Model.VisibleColumns)
                                 {
                                     <th scope="col">@c.DisplayLabel@(c.IsRequired ? " *" : "")</th>
                                 }
+                                <th scope="col">Phone</th>
+                                <th scope="col">Calls</th>
+                                <th scope="col">Outcome</th>
+                                <th scope="col">Response</th>
                                 <th scope="col">Status</th>
                                 <th scope="col">Close Time</th>
                                 <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
@@ -115,19 +171,13 @@ else
                         <tbody>
                             @foreach (var r in Model.Records)
                             {
-                                <tr>
-                                    <td data-label="Date">@Time.Date(r.CreatedAtUtc)</td>
-                                    <td data-label="Time">@Time.Time(r.CreatedAtUtc)</td>
+                                <tr class="record-row js-record-row @(r.IsOnCall ? "call-active" : "")"
+                                    data-key="@r.Key" tabindex="0" aria-label="Open details for @r.ContactId">
+                                    <td data-label="Date" class="js-call-date">@Time.Date(r.LastCall?.StartedAtUtc ?? r.CreatedAtUtc)</td>
+                                    <td data-label="Time" class="js-call-start">@Time.Time(r.LastCall?.StartedAtUtc)</td>
                                     <td data-label="Contact ID" class="fw-semibold">
                                         @r.ContactId
                                         @if (r.ContactIdGenerated) { <span class="badge text-bg-light border ms-1" title="No Contact ID in the CSV; a temporary ID was assigned">temp</span> }
-                                    </td>
-                                    <td data-label="Response">
-                                        <select class="form-select form-select-sm response-select js-response" data-key="@r.Key" aria-label="Response for @r.ContactId" disabled="@r.IsClosed">
-                                            <option value="" selected="@(r.Response is null)">—</option>
-                                            <option value="Y" selected="@(r.Response == "Y")">Y – Yes</option>
-                                            <option value="N" selected="@(r.Response == "N")">N – No</option>
-                                        </select>
                                     </td>
                                     @foreach (var c in Model.VisibleColumns)
                                     {
@@ -157,16 +207,51 @@ else
                                             }
                                         </td>
                                     }
-                                    <td data-label="Status"><span class="badge rounded-pill @DashboardModel.StatusBadgeClass(r.Status)">@r.Status.Name()</span></td>
-                                    <td data-label="Close Time">@(r.ClosedAtUtc is null ? "—" : $"{Time.Date(r.ClosedAtUtc)} {Time.Time(r.ClosedAtUtc)}")</td>
-                                    <td class="text-end actions-cell">
-                                        @if (r.IsClosed && r.OrderPublicId is Guid orderId)
+                                    <td data-label="Phone">
+                                        @if (Model.PhoneFor(r) is { } phone)
                                         {
-                                            <a class="btn btn-sm btn-outline-success" asp-page="/Receipts/Details" asp-route-id="@orderId">Receipt</a>
+                                            <a class="btn btn-sm btn-outline-success dial-link js-dial" href="@phone.TelUri" title="@phone.Label"
+                                               aria-label="Call @(r.StoreName ?? r.ContactId) at @phone.Number"><partial name="_Icon" model="@("phone")" /> @phone.Number</a>
                                         }
                                         else
                                         {
-                                            <a class="btn btn-sm @(r.Status == RecordStatus.Imported ? "btn-primary" : "btn-outline-primary") px-3" asp-page="/Records/Open" asp-route-key="@r.Key">@DashboardModel.ActionLabel(r)</a>
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td data-label="Calls" class="js-call-count">@(r.Calls.Count == 0 ? "—" : r.Calls.Count.ToString())</td>
+                                    <td data-label="Outcome" class="js-call-outcome">
+                                        @if (r.LastCall?.Outcome is { } outcome)
+                                        {
+                                            <span class="badge rounded-pill @DashboardModel.OutcomeBadgeClass(outcome)" title="@r.LastCall.Notes">@outcome.Name()</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td data-label="Response">
+                                        <select class="form-select form-select-sm response-select js-response" data-key="@r.Key" aria-label="Response for @r.ContactId" disabled="@r.IsClosed">
+                                            <option value="" selected="@(r.Response is null)">—</option>
+                                            <option value="Y" selected="@(r.Response == "Y")">Y – Yes</option>
+                                            <option value="N" selected="@(r.Response == "N")">N – No</option>
+                                        </select>
+                                    </td>
+                                    <td data-label="Status"><span class="badge rounded-pill js-status-badge @DashboardModel.StatusBadgeClass(r.Status)">@r.Status.Name()</span></td>
+                                    <td data-label="Close Time" class="js-call-end">@Time.Time(r.LastCall?.EndedAtUtc)</td>
+                                    <td class="text-end actions-cell">
+                                        @if (r.IsClosed && r.OrderPublicId is Guid orderId)
+                                        {
+                                            <a class="btn btn-sm btn-outline-success js-row-action" asp-page="/Receipts/Details" asp-route-id="@orderId">Receipt</a>
+                                        }
+                                        else if (r.Status == RecordStatus.Imported)
+                                        {
+                                            <form method="post" asp-page="/Records/Open" asp-route-key="@r.Key" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-primary px-3 js-row-action">Proceed</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <a class="btn btn-sm btn-outline-primary px-3 js-row-action" asp-page="/Records/Open" asp-route-key="@r.Key">@DashboardModel.ActionLabel(r)</a>
                                         }
                                     </td>
                                 </tr>
@@ -191,8 +276,67 @@ else
     </div>
     @if (Model.VisibleColumns.Any(c => c.IsRequired))
     {
-        <p class="small text-muted mt-2">* Required before checkout.</p>
+        <p class="small text-muted mt-2">* Required before confirmation.</p>
     }
+    <p class="small text-muted mt-2">Click a store (or <strong>Next call</strong>) to open its details and start the call timer. <strong>End call</strong> records the close time; <strong>Call again</strong> starts a new call for the same store.</p>
+
+    <div class="modal fade" id="recordModal" tabindex="-1" aria-labelledby="recordModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="min-w-0">
+                        <h2 class="modal-title h5 text-truncate" id="recordModalTitle">Record</h2>
+                        <div class="small text-muted js-rm-sub"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="call-bar d-flex flex-wrap gap-4 align-items-center mb-3">
+                        <div><div class="small text-muted">Call started</div><div class="fw-semibold js-rm-start">—</div></div>
+                        <div><div class="small text-muted">Duration</div><div class="fw-semibold font-monospace js-rm-duration" aria-live="off">—</div></div>
+                        <div><div class="small text-muted">Close time</div><div class="fw-semibold js-rm-end">—</div></div>
+                        <span class="badge rounded-pill ms-auto js-rm-status"></span>
+                        <a class="btn btn-success d-none js-rm-dial js-dial" href="#"><partial name="_Icon" model="@("phone")" /> <span class="js-rm-dial-number"></span></a>
+                    </div>
+                    <section class="call-outcome mb-3 d-none js-rm-outcome" aria-labelledby="rmOutcomeTitle">
+                        <h3 class="h6 mb-2" id="rmOutcomeTitle">Call outcome <span class="text-muted fw-normal small js-rm-outcome-for"></span></h3>
+                        <div class="d-flex flex-wrap gap-2 mb-2" role="radiogroup" aria-labelledby="rmOutcomeTitle">
+                            @foreach (var o in Enum.GetValues<CallOutcome>())
+                            {
+                                <input type="radio" class="btn-check js-rm-outcome-option" name="rmOutcome" id="rmOutcome_@o" value="@o" autocomplete="off" />
+                                <label class="btn btn-sm btn-outline-secondary" for="rmOutcome_@o">@o.Name()</label>
+                            }
+                        </div>
+                        <label for="rmNotes" class="visually-hidden">Call notes</label>
+                        <textarea id="rmNotes" class="form-control form-control-sm js-rm-notes" rows="2" maxlength="@RecordFlow.Core.Workspaces.CallEntry.MaxNotesLength" placeholder="Notes for this call (who you spoke to, when to call back…)"></textarea>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <span class="small text-muted me-auto js-rm-outcome-state"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary js-rm-outcome-clear">Clear</button>
+                            <button type="button" class="btn btn-sm btn-primary js-rm-outcome-save">Save outcome</button>
+                        </div>
+                    </section>
+                    <div class="js-rm-loading text-muted text-center py-4">Loading record…</div>
+                    <div class="row g-4">
+                        <div class="col-md-7">
+                            <h3 class="h6 js-rm-fields-title d-none">Store details (from CSV)</h3>
+                            <dl class="row small mb-0 kv js-rm-fields"></dl>
+                            <p class="small text-muted mb-0 d-none js-rm-purged">This record is completed. Its temporary CSV data has been removed; see the receipt for the final values.</p>
+                        </div>
+                        <div class="col-md-5">
+                            <h3 class="h6 js-rm-history-title d-none">Call history</h3>
+                            <ol class="list-unstyled small call-history mb-0 js-rm-history"></ol>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger me-auto js-rm-end-call">End call</button>
+                    <button type="button" class="btn btn-success me-auto d-none js-rm-call-again"><partial name="_Icon" model="@("phone")" /> Call again</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary px-4 js-rm-action">Proceed</button>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalTitle" aria-hidden="true">

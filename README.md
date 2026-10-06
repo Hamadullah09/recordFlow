@@ -8,10 +8,12 @@ contact/emergency/alarm information, verify the result, and get a confirmation a
 auto-expiring workspace. Only the final, confirmed business record is saved to SQL Server.
 
 ```
-Upload CSV → Select record → Checkout details → Payment → Payment successful → Generate form
-→ Share form → Recipient adds missing info (payment details read-only) → Record updates automatically
-→ User verifies & confirms → Confirmation / receipt
+Upload CSV → Click a record (details popup, call timer starts; "End call" sets Close Time)
+→ Proceed → Form (store + billing details) → Share form → Recipient adds missing info and fills/edits
+billing details → Record updates automatically → User verifies & confirms → Payment gateway → Receipt
 ```
+
+Times are shown in Pakistan Standard Time (`App:TimeZone` = `Asia/Karachi`).
 
 ## Technology
 
@@ -71,10 +73,10 @@ Change it for SQL Express/Docker, e.g. `Server=localhost;Database=RecordFlow_Dev
 
 1. Register an account, then confirm it from the dev mailbox.
 2. On the dashboard click **Upload CSV** and choose `samples/stores-sample.csv`.
-3. Click **Proceed** on a record → enter billing details → **Proceed to payment** → *Simulate successful payment*.
-4. **Generate form** → **Share form** (copy the link or send it by email — it appears in the dev mailbox).
-5. Open the link in a private window as the recipient, fill in the missing fields and submit.
-6. Back in the portal the record is **Ready for verification** → **Verify details** → **Confirm details** → receipt.
+3. Click a record row to see all its CSV details in a popup (the call timer starts; **End call** records the close time).
+4. Click **Proceed** → the form opens → **Share form** (copy the link or send it by email — it appears in the dev mailbox).
+5. Open the link in a private window as the recipient, fill in the missing fields and the billing details, and submit.
+6. Back in the portal the record is **Ready for verification** → **Verify details** → **Confirm & pay** → *Simulate successful payment* → receipt.
 7. Sign in as the administrator and open **Admin Portal** to manage users, the six dashboard columns, form fields,
    pricing, finalized records (CSV export), payments and the audit log.
 

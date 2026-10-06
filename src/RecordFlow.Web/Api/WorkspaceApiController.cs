@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.RateLimiting;
 using RecordFlow.Core;
 using RecordFlow.Core.Abstractions;
+using RecordFlow.Core.Services;
 using RecordFlow.Infrastructure.Services;
 using RecordFlow.Web.Infrastructure;
 
@@ -26,8 +27,78 @@ public class WorkspaceApiController(RecordWorkflowService workflow, LinkBuilder 
     public sealed record ShareLinkRequest(bool Regenerate);
     public sealed record ShareEmailRequest(string Email, string? Message);
     public sealed record ChannelRequest(string Channel);
+    public sealed record OutcomeRequest(string? Outcome, string? Notes);
 
     private string UserId => User.GetUserId();
+
+    /// <summary>Row clicked on the dashboard: starts the first call (if none yet) and returns the record's CSV details.</summary>
+    [HttpPost("call/start")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StartCall(string key, CancellationToken ct) =>
+        Ok(CallDetails(await workflow.StartCallAsync(UserId, key, again: false, ct)));
+
+    /// <summary>"Call again": starts a new call after the previous one ended.</summary>
+    [HttpPost("call/again")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CallAgain(string key, CancellationToken ct) =>
+        Ok(CallDetails(await workflow.StartCallAsync(UserId, key, again: true, ct)));
+
+    /// <summary>"End call" in the record popup: stores the close time.</summary>
+    [HttpPost("call/end")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EndCall(string key, CancellationToken ct) =>
+        Ok(CallDetails(await workflow.EndCallAsync(UserId, key, ct)));
+
+    /// <summary>Outcome and notes for the latest call.</summary>
+    [HttpPost("call/outcome")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetCallOutcome(string key, OutcomeRequest request, CancellationToken ct)
+    {
+        CallOutcome? outcome = null;
+        if (!string.IsNullOrWhiteSpace(request.Outcome))
+        {
+            if (!Enum.TryParse<CallOutcome>(request.Outcome, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
+                return Problem(title: "Choose a valid call outcome.", statusCode: StatusCodes.Status400BadRequest);
+            outcome = parsed;
+        }
+        return Ok(CallDetails(await workflow.SetCallOutcomeAsync(UserId, key, outcome, request.Notes, ct)));
+    }
+
+    private object CallDetails(RecordContext ctx)
+    {
+        var r = ctx.Record;
+        var last = r.LastCall;
+        return new
+        {
+            contactId = r.ContactId,
+            storeName = r.StoreName,
+            status = r.Status.ToString(),
+            statusLabel = r.Status.Name(),
+            actionLabel = Pages.DashboardModel.ActionLabel(r),
+            closed = r.IsClosed,
+            callStarted = last?.StartedAtUtc.ToString("o"),
+            callStartedText = time.Time(last?.StartedAtUtc),
+            callStartedDate = time.Date(last?.StartedAtUtc),
+            callEnded = last?.EndedAtUtc?.ToString("o"),
+            callEndedText = time.Time(last?.EndedAtUtc),
+            lastOutcome = last?.Outcome?.ToString(),
+            lastNotes = last?.Notes,
+            calls = r.Calls.Select((c, i) => new
+            {
+                number = i + 1,
+                started = $"{time.Date(c.StartedAtUtc)} {time.Time(c.StartedAtUtc)}",
+                ended = c.EndedAtUtc is null ? null : time.Time(c.EndedAtUtc),
+                duration = c.Duration is { } d ? Pages.DashboardModel.FormatDuration(d) : null,
+                outcome = c.Outcome?.Name(),
+                outcomeClass = c.Outcome is { } o ? Pages.DashboardModel.OutcomeBadgeClass(o) : null,
+                notes = c.Notes,
+            }),
+            // Every column of the uploaded row, in file order (empty after the record is completed and purged).
+            // Valid U.S. phone numbers come with a tel: link for click-to-call.
+            fields = ctx.Workspace.Headers.Select(h => new { label = h, value = r.GetCsvValue(h), tel = PhoneNumbers.ToTelUri(r.GetCsvValue(h)) }),
+            phone = PhoneNumbers.Primary(r, ctx.Workspace.Headers) is { } p ? new { label = p.Label, number = p.Number, tel = p.TelUri } : null,
+        };
+    }
 
     [HttpPost("response")]
     [ValidateAntiForgeryToken]

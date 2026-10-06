@@ -9,13 +9,14 @@
     var store = r.StoreName ?? $"Contact ID {r.ContactId}";
     var api = Url.Content($"~/api/workspace/records/{Uri.EscapeDataString(r.Key)}");
 }
-<partial name="_RecordStepper" model="new StepperModel(r, 4)" />
+<partial name="_RecordStepper" model="new StepperModel(r, 2)" />
+<partial name="_RecordCallStrip" model="Model" />
 
 <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
-        <a class="small text-decoration-none" asp-page="/Dashboard">&larr; Back to dashboard</a>
+        <a class="small text-decoration-none" asp-page="/Dashboard">&larr; Back to call desk</a>
         <h1 class="h3 mt-2 mb-1">@store</h1>
-        <p class="text-muted mb-0">Contact ID @r.ContactId · Order @r.OrderNumber</p>
+        <p class="text-muted mb-0">Contact ID @r.ContactId</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-primary btn-lg px-4" data-bs-toggle="modal" data-bs-target="#shareModal">
@@ -83,9 +84,9 @@
     </div>
 
     <div class="col-lg-4">
-        @if (Model.Order is not null)
+        @if (Model.Price is not null)
         {
-            <partial name="_OrderReadOnly" model="Model.Order" />
+            <partial name="_PriceSummary" model="Model.Price" />
         }
         <div class="card border-0 shadow-sm mt-3">
             <div class="card-header bg-white"><h2 class="h6 mb-0">Sharing</h2></div>
@@ -110,7 +111,7 @@
                         </ul>
                     }
                 }
-                <p class="text-muted mt-3 mb-0">The recipient can add or correct information but can't change payment or billing details.</p>
+                <p class="text-muted mt-3 mb-0">The recipient can add or correct the store information and the billing details. Payment is taken only after you verify and confirm.</p>
             </div>
         </div>
     </div>

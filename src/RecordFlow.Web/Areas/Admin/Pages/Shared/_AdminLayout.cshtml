@@ -4,6 +4,8 @@
     var path = Context.Request.Path.Value ?? "";
     string Active(string prefix, bool exact = false) =>
         (exact ? string.Equals(path.TrimEnd('/'), prefix, StringComparison.OrdinalIgnoreCase) : path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ? "active" : "";
+    string? Current(string prefix, bool exact = false) => Active(prefix, exact) == "active" ? "page" : null;
+    var displayName = User.GetDisplayName();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -16,46 +18,59 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="app-body admin-body">
     <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
-    <div class="admin-shell d-flex">
-        <aside class="admin-sidebar d-flex flex-column p-3">
-            <div class="d-flex align-items-center justify-content-between">
-                <a class="brand d-flex align-items-center gap-2 text-decoration-none fw-bold py-2" asp-area="Admin" asp-page="/Index">
-                    <partial name="_Logo" /> Admin Portal
+    <div class="app-shell">
+        <aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="adminSidebar" aria-label="Admin navigation">
+            <div class="sidebar-brand">
+                <a class="d-flex align-items-center gap-2 text-decoration-none" asp-area="Admin" asp-page="/Index">
+                    <partial name="_Logo" />
+                    <span><span class="d-block brand-name">@AppOptions.Value.Name</span><span class="admin-badge">Admin</span></span>
                 </a>
-                <button class="btn btn-sm btn-outline-light d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false">Menu</button>
+                <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Close menu"></button>
             </div>
-            <nav id="adminNav" class="collapse d-lg-block mt-2" aria-label="Admin navigation">
-                <ul class="nav flex-column gap-1">
-                    <li class="section-label">Overview</li>
-                    <li><a class="nav-link @Active("/Admin", exact: true)" asp-area="Admin" asp-page="/Index">Dashboard</a></li>
-                    <li class="section-label">Management</li>
-                    <li><a class="nav-link @Active("/Admin/Users")" asp-area="Admin" asp-page="/Users/Index">Users</a></li>
-                    <li><a class="nav-link @Active("/Admin/Companies")" asp-area="Admin" asp-page="/Companies/Index">Companies</a></li>
-                    <li class="section-label">Configuration</li>
-                    <li><a class="nav-link @Active("/Admin/Columns")" asp-area="Admin" asp-page="/Columns/Index">Dashboard columns</a></li>
-                    <li><a class="nav-link @Active("/Admin/FormFields")" asp-area="Admin" asp-page="/FormFields/Index">Form fields</a></li>
-                    <li><a class="nav-link @Active("/Admin/Settings")" asp-area="Admin" asp-page="/Settings/Index">Pricing &amp; settings</a></li>
-                    <li class="section-label">Data</li>
-                    <li><a class="nav-link @Active("/Admin/Records")" asp-area="Admin" asp-page="/Records/Index">Finalized records</a></li>
-                    <li><a class="nav-link @Active("/Admin/Payments")" asp-area="Admin" asp-page="/Payments/Index">Payments &amp; orders</a></li>
-                    <li><a class="nav-link @Active("/Admin/AuditLogs")" asp-area="Admin" asp-page="/AuditLogs/Index">Audit log</a></li>
-                </ul>
+            <nav class="sidebar-nav">
+                <div class="section-label">Overview</div>
+                <a class="nav-link @Active("/Admin", exact: true)" aria-current="@Current("/Admin", exact: true)" asp-area="Admin" asp-page="/Index"><partial name="_Icon" model="@("chart")" /> Dashboard</a>
+                <div class="section-label">Calling</div>
+                <a class="nav-link @Active("/Admin/Calls")" aria-current="@Current("/Admin/Calls")" asp-area="Admin" asp-page="/Calls/Index"><partial name="_Icon" model="@("list")" /> Call log</a>
+                <a class="nav-link @Active("/Admin/Records")" aria-current="@Current("/Admin/Records")" asp-area="Admin" asp-page="/Records/Index"><partial name="_Icon" model="@("check-circle")" /> Completed records</a>
+                <a class="nav-link @Active("/Admin/Payments")" aria-current="@Current("/Admin/Payments")" asp-area="Admin" asp-page="/Payments/Index"><partial name="_Icon" model="@("card")" /> Payments &amp; orders</a>
+                <div class="section-label">Team</div>
+                <a class="nav-link @Active("/Admin/Users")" aria-current="@Current("/Admin/Users")" asp-area="Admin" asp-page="/Users/Index"><partial name="_Icon" model="@("users")" /> Callers &amp; users</a>
+                <a class="nav-link @Active("/Admin/Companies")" aria-current="@Current("/Admin/Companies")" asp-area="Admin" asp-page="/Companies/Index"><partial name="_Icon" model="@("building")" /> Companies</a>
+                <div class="section-label">Setup</div>
+                <a class="nav-link @Active("/Admin/Columns")" aria-current="@Current("/Admin/Columns")" asp-area="Admin" asp-page="/Columns/Index"><partial name="_Icon" model="@("columns")" /> Call desk columns</a>
+                <a class="nav-link @Active("/Admin/FormFields")" aria-current="@Current("/Admin/FormFields")" asp-area="Admin" asp-page="/FormFields/Index"><partial name="_Icon" model="@("form")" /> Form fields</a>
+                <a class="nav-link @Active("/Admin/Settings")" aria-current="@Current("/Admin/Settings")" asp-area="Admin" asp-page="/Settings/Index"><partial name="_Icon" model="@("sliders")" /> Pricing &amp; settings</a>
+                <div class="section-label">System</div>
+                <a class="nav-link @Active("/Admin/AuditLogs")" aria-current="@Current("/Admin/AuditLogs")" asp-area="Admin" asp-page="/AuditLogs/Index"><partial name="_Icon" model="@("activity")" /> Audit log</a>
             </nav>
+            <div class="sidebar-footer">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                    <span class="avatar" aria-hidden="true">@(displayName.FirstOrDefault())</span>
+                    <span class="min-w-0">
+                        <span class="d-block text-truncate fw-semibold text-white">@displayName</span>
+                        <span class="d-block text-truncate small">@User.Identity!.Name</span>
+                    </span>
+                </div>
+                <form method="post" asp-area="" asp-page="/Account/Logout" class="m-0">
+                    <button type="submit" class="btn btn-sm btn-sidebar" title="Sign out" aria-label="Sign out"><partial name="_Icon" model="@("logout")" /></button>
+                </form>
+            </div>
         </aside>
-        <div class="flex-grow-1 d-flex flex-column min-w-0">
-            <header class="admin-topbar d-flex align-items-center justify-content-between px-3 px-lg-4 gap-2">
-                <span class="fw-semibold text-truncate">@ViewData["Title"]</span>
-                <div class="d-flex align-items-center gap-2">
-                    <a class="btn btn-sm btn-light" asp-area="" asp-page="/Dashboard">Back to portal</a>
-                    <span class="small text-muted d-none d-md-inline">@User.Identity!.Name</span>
-                    <form method="post" asp-area="" asp-page="/Account/Logout" class="m-0">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">Sign out</button>
-                    </form>
+        <div class="app-main">
+            <header class="app-topbar">
+                <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Open menu">
+                    <partial name="_Icon" model="@("menu")" />
+                </button>
+                <span class="topbar-title text-truncate">@ViewData["Title"]</span>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span class="topbar-clock d-none d-md-inline" title="Portal time zone">@Time.Abbreviation</span>
+                    <a class="btn btn-sm btn-call" asp-area="" asp-page="/Dashboard"><partial name="_Icon" model="@("headset")" /> <span class="d-none d-sm-inline">Call desk</span></a>
                 </div>
             </header>
-            <main id="main" class="p-3 p-lg-4 flex-grow-1">
+            <main id="main" class="app-content">
                 <partial name="_Alerts" />
                 @RenderBody()
             </main>

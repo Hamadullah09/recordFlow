@@ -5,7 +5,10 @@
     var signedIn = User.Identity?.IsAuthenticated == true;
     var isAdmin = signedIn && User.IsInRole(Roles.Administrator);
     var path = Context.Request.Path.Value ?? "";
-    string Active(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    var isHome = string.IsNullOrEmpty(path.Trim('/'));
+    string Active(params string[] prefixes) => prefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)) ? "active" : "";
+    string? Current(params string[] prefixes) => Active(prefixes) == "active" ? "page" : null;
+    var displayName = signedIn ? User.GetDisplayName() : "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -17,81 +20,155 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="d-flex flex-column min-vh-100">
-    <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
-    <header class="app-header border-bottom bg-white sticky-top">
-        <nav class="navbar navbar-expand-lg container-xl" aria-label="Main navigation">
-            <a class="navbar-brand d-flex align-items-center gap-2" asp-page="@(signedIn ? "/Dashboard" : "/Index")">
-                <partial name="_Logo" />
-                <span class="fw-bold">@appName</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="mainNav">
-                @if (signedIn)
-                {
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item"><a class="nav-link @Active("/dashboard") @Active("/records")" asp-page="/Dashboard">Dashboard</a></li>
-                        <li class="nav-item"><a class="nav-link @Active("/receipts")" asp-page="/Receipts/Index">Orders &amp; Receipts</a></li>
-                        @if (isAdmin)
-                        {
-                            <li class="nav-item"><a class="nav-link" asp-area="Admin" asp-page="/Index">Admin Portal</a></li>
-                        }
-                    </ul>
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="avatar" aria-hidden="true">@(User.GetDisplayName().FirstOrDefault())</span>
-                            <span class="text-truncate user-name">@User.GetDisplayName()</span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                            <li><span class="dropdown-item-text small text-muted">Signed in as @User.Identity!.Name</span></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item" asp-page="/Account/Manage/Index">Profile</a></li>
-                            <li><a class="dropdown-item" asp-page="/Account/Manage/ChangePassword">Change password</a></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li>
-                                <form method="post" asp-page="/Account/Logout">
-                                    <button type="submit" class="dropdown-item">Sign out</button>
-                                </form>
-                            </li>
-                        </ul>
+@if (signedIn)
+{
+    <body class="app-body">
+        <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
+        <div class="app-shell">
+            <aside class="app-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="appSidebar" aria-label="Main navigation">
+                <div class="sidebar-brand">
+                    <a class="d-flex align-items-center gap-2 text-decoration-none" asp-page="/Dashboard">
+                        <partial name="_Logo" />
+                        <span><span class="d-block brand-name">@appName</span><span class="d-block brand-tag">Call desk</span></span>
+                    </a>
+                    <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close menu"></button>
+                </div>
+                <nav class="sidebar-nav">
+                    <div class="section-label">Calling</div>
+                    <a class="nav-link @Active("/dashboard", "/records")" aria-current="@Current("/dashboard", "/records")" asp-page="/Dashboard"><partial name="_Icon" model="@("headset")" /> Call desk</a>
+                    <a class="nav-link @Active("/receipts")" aria-current="@Current("/receipts")" asp-page="/Receipts/Index"><partial name="_Icon" model="@("receipt")" /> Orders &amp; receipts</a>
+                    @if (isAdmin)
+                    {
+                        <div class="section-label">Manage</div>
+                        <a class="nav-link" asp-area="Admin" asp-page="/Index"><partial name="_Icon" model="@("shield")" /> Admin portal</a>
+                        <a class="nav-link" asp-area="Admin" asp-page="/Calls/Index"><partial name="_Icon" model="@("list")" /> Team call log</a>
+                    }
+                    <div class="section-label">Account</div>
+                    <a class="nav-link @Active("/account/manage")" aria-current="@Current("/account/manage")" asp-page="/Account/Manage/Index"><partial name="_Icon" model="@("user")" /> Profile</a>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        <span class="avatar" aria-hidden="true">@(displayName.FirstOrDefault())</span>
+                        <span class="min-w-0">
+                            <span class="d-block text-truncate fw-semibold text-white">@displayName</span>
+                            <span class="d-block text-truncate small">@User.Identity!.Name</span>
+                        </span>
                     </div>
-                }
-                else
-                {
-                    <div class="ms-auto d-flex gap-2 py-2 py-lg-0">
-                        <a class="btn btn-outline-primary" asp-page="/Account/Login">Sign in</a>
-                        <a class="btn btn-primary" asp-page="/Account/Register">Create account</a>
+                    <form method="post" asp-page="/Account/Logout" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-sidebar" title="Sign out" aria-label="Sign out"><partial name="_Icon" model="@("logout")" /></button>
+                    </form>
+                </div>
+            </aside>
+
+            <div class="app-main">
+                <header class="app-topbar">
+                    <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar" aria-label="Open menu">
+                        <partial name="_Icon" model="@("menu")" />
+                    </button>
+                    <span class="topbar-title text-truncate">@ViewData["Title"]</span>
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <span class="topbar-clock d-none d-md-inline" title="Portal time zone">@Time.Abbreviation</span>
+                        <div class="dropdown">
+                            <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="avatar" aria-hidden="true">@(displayName.FirstOrDefault())</span>
+                                <span class="text-truncate user-name d-none d-sm-inline">@displayName</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li><span class="dropdown-item-text small text-muted">Signed in as @User.Identity!.Name</span></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item" asp-page="/Account/Manage/Index">Profile</a></li>
+                                <li><a class="dropdown-item" asp-page="/Account/Manage/ChangePassword">Change password</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li>
+                                    <form method="post" asp-page="/Account/Logout">
+                                        <button type="submit" class="dropdown-item">Sign out</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                }
+                </header>
+
+                <main id="main" class="app-content">
+                    <partial name="_Alerts" />
+                    @RenderBody()
+                </main>
+
+                <footer class="app-footer small text-muted">
+                    <span>&copy; @DateTime.UtcNow.Year @appName</span>
+                    <nav class="d-flex gap-3" aria-label="Footer">
+                        <a asp-page="/Privacy">Privacy</a>
+                        <a asp-page="/Terms">Terms</a>
+                        <a href="mailto:@AppOptions.Value.SupportEmail">Support</a>
+                    </nav>
+                </footer>
             </div>
-        </nav>
-    </header>
-
-    <main id="main" class="flex-grow-1 py-4 py-lg-5">
-        <div class="container-xl">
-            <partial name="_Alerts" />
-            @RenderBody()
         </div>
-    </main>
 
-    <footer class="app-footer border-top bg-white py-4 mt-auto">
-        <div class="container-xl d-flex flex-column flex-md-row justify-content-between gap-2 small text-muted">
-            <span>&copy; @DateTime.UtcNow.Year @appName. All rights reserved.</span>
-            <nav class="d-flex gap-3" aria-label="Footer">
-                <a asp-page="/Privacy">Privacy</a>
-                <a asp-page="/Terms">Terms</a>
-                <a href="mailto:@AppOptions.Value.SupportEmail">Support</a>
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/js/site.js" asp-append-version="true"></script>
+        @await RenderSectionAsync("Scripts", required: false)
+    </body>
+}
+else
+{
+    <body class="public-body d-flex flex-column min-vh-100 @(isHome ? "is-home" : "")">
+        <a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>
+        <header class="public-header sticky-top">
+            <nav class="navbar navbar-expand-lg container-xl" aria-label="Main navigation">
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-page="/Index">
+                    <partial name="_Logo" />
+                    <span class="fw-bold">@appName</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto ms-lg-4">
+                        <li class="nav-item"><a class="nav-link" href="/#features">Features</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/#how-it-works">How it works</a></li>
+                    </ul>
+                    <div class="d-flex gap-2 py-2 py-lg-0">
+                        <a class="btn btn-ghost" asp-page="/Account/Login">Sign in</a>
+                        <a class="btn btn-primary" asp-page="/Account/Register">Get started</a>
+                    </div>
+                </div>
             </nav>
-        </div>
-    </footer>
+        </header>
 
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+        <main id="main" class="flex-grow-1 @(isHome ? "" : "py-4 py-lg-5")">
+            @if (isHome)
+            {
+                <div class="container-xl home-alerts"><partial name="_Alerts" /></div>
+                @RenderBody()
+            }
+            else
+            {
+                <div class="container-xl">
+                    <partial name="_Alerts" />
+                    @RenderBody()
+                </div>
+            }
+        </main>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
+        <footer class="public-footer py-4 mt-auto">
+            <div class="container-xl d-flex flex-column flex-md-row justify-content-between gap-2 small">
+                <span>&copy; @DateTime.UtcNow.Year @appName. All rights reserved.</span>
+                <nav class="d-flex gap-3" aria-label="Footer">
+                    <a asp-page="/Privacy">Privacy</a>
+                    <a asp-page="/Terms">Terms</a>
+                    <a href="mailto:@AppOptions.Value.SupportEmail">Support</a>
+                </nav>
+            </div>
+        </footer>
+
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/js/site.js" asp-append-version="true"></script>
+        @await RenderSectionAsync("Scripts", required: false)
+    </body>
+}
 </html>

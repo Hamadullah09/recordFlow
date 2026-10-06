@@ -64,7 +64,8 @@ public class EditModel(ApplicationDbContext db, PortalConfigService config, IAud
         {
             ModelState.AddModelError("Input.Key", "A field with this key already exists.");
         }
-        if (Input.Key.StartsWith(FormBuilder.AdditionalFieldPrefix, StringComparison.OrdinalIgnoreCase))
+        if (Input.Key.StartsWith(FormBuilder.AdditionalFieldPrefix, StringComparison.OrdinalIgnoreCase) ||
+            Input.Key.StartsWith(FormBuilder.BillingFieldPrefix, StringComparison.OrdinalIgnoreCase))
             ModelState.AddModelError("Input.Key", "This prefix is reserved.");
         if (Input.FieldType == FieldType.Select && OptionParser.Parse(Input.Options).Count == 0)
             ModelState.AddModelError("Input.Options", "Drop-down fields need at least one option.");

@@ -7,7 +7,8 @@ namespace RecordFlow.Web.Pages.Checkout;
 
 /// <summary>
 /// Where the payment provider sends the customer back. The query string is never trusted: the order is
-/// looked up for the signed-in user and its status is re-verified with the provider.
+/// looked up for the signed-in user and its status is re-verified with the provider. A paid order completes
+/// the confirmed record and shows the receipt.
 /// </summary>
 public class ReturnModel(RecordWorkflowService workflow) : PortalPageModel
 {
@@ -22,13 +23,21 @@ public class ReturnModel(RecordWorkflowService workflow) : PortalPageModel
             return RedirectToPage("/Receipts/Index");
         }
 
-        if (result.RecordKey is null)
+        var order = result.Order;
+        if (order.Status == OrderStatus.Paid)
         {
-            if (result.Order.Status == OrderStatus.Paid)
-                FlashInfo($"Payment received for order {result.Order.OrderNumber}. Your working session has ended — upload the same CSV again and Contact ID {result.Order.ContactId} will be linked to this payment automatically.");
-            return RedirectToPage("/Receipts/Details", new { id = result.Order.PublicId });
+            if (result.RecordKey is null)
+                FlashInfo($"Payment received for order {order.OrderNumber}. Your working session has ended — upload the same CSV again and confirm Contact ID {order.ContactId}; you won't be charged twice.");
+            else
+                FlashSuccess($"Payment received. The record for Contact ID {order.ContactId} is complete.");
+            return RedirectToPage("/Receipts/Details", new { id = order.PublicId });
         }
 
-        return RedirectToPage("/Records/Payment", new { key = result.RecordKey });
+        if (order.Status is OrderStatus.Failed or OrderStatus.Canceled)
+            FlashError($"The payment was not completed{(order.FailureReason is null ? "" : $": {order.FailureReason.TrimEnd('.')}")}. You have not been charged — review the details and try again.");
+
+        return result.RecordKey is null
+            ? RedirectToPage("/Receipts/Details", new { id = order.PublicId })
+            : RedirectToPage("/Records/Open", new { key = result.RecordKey });
     }
 }

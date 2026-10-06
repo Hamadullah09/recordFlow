@@ -1,0 +1,26 @@
+@model RecordFlow.Web.Pages.Records.RecordPageModel
+@* Caller context on record pages: dial the store and see how the last call went. *@
+@{
+    var r = Model.Record;
+    var last = r.LastCall;
+}
+<div class="record-call-strip mb-4">
+    @if (Model.Phone is { } phone)
+    {
+        <a class="btn btn-sm btn-call" href="@phone.TelUri" title="@phone.Label" aria-label="Call @(r.StoreName ?? r.ContactId) at @phone.Number"><partial name="_Icon" model="@("phone")" /> @phone.Number</a>
+    }
+    <span class="strip-item"><partial name="_Icon" model="@("headset")" /> @(r.Calls.Count == 0 ? "Not called yet" : $"{r.Calls.Count} call{(r.Calls.Count == 1 ? "" : "s")}")</span>
+    @if (last is not null)
+    {
+        <span class="strip-item"><partial name="_Icon" model="@("clock")" /> Last call @Time.Date(last.StartedAtUtc) @Time.Time(last.StartedAtUtc)@(last.Duration is { } d ? $" · {RecordFlow.Web.Pages.DashboardModel.FormatDuration(d)}" : " · live")</span>
+        @if (last.Outcome is { } outcome)
+        {
+            <span class="badge rounded-pill @RecordFlow.Web.Pages.DashboardModel.OutcomeBadgeClass(outcome)">@outcome.Name()</span>
+        }
+        @if (!string.IsNullOrWhiteSpace(last.Notes))
+        {
+            <span class="strip-note flex-grow-1"><partial name="_Icon" model="@("note")" /> @last.Notes</span>
+        }
+    }
+    <a class="ms-auto small fw-semibold text-decoration-none" asp-page="/Dashboard" asp-route-call="@r.Key">Log a call &rarr;</a>
+</div>

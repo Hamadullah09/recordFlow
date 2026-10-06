@@ -3,11 +3,10 @@
     var status = Model.Record.Status;
     var steps = new (string Label, bool Done)[]
     {
-        ("Select record", true),
-        ("Checkout", status >= RecordStatus.AwaitingPayment),
-        ("Payment", status >= RecordStatus.Paid),
+        ("Call store", true),
         ("Form & share", status >= RecordStatus.ReadyForVerification),
-        ("Verify", status >= RecordStatus.Verified),
+        ("Verify & confirm", status >= RecordStatus.AwaitingPayment),
+        ("Payment", status >= RecordStatus.Verified),
         ("Receipt", status >= RecordStatus.Verified),
     };
 }

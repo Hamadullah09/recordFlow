@@ -10,10 +10,10 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="d-flex flex-column min-vh-100 recipient">
-    <header class="app-header border-bottom bg-white">
+    <header class="recipient-header">
         <div class="container-lg py-3 d-flex align-items-center justify-content-between">
-            <span class="d-flex align-items-center gap-2 fw-bold"><partial name="_Logo" /> @AppOptions.Value.Name</span>
-            <span class="badge rounded-pill text-bg-light border secure-badge"><span aria-hidden="true">&#128274;</span> Secure form</span>
+            <span class="d-flex align-items-center gap-2 fw-bold text-white"><partial name="_Logo" /> @AppOptions.Value.Name</span>
+            <span class="badge rounded-pill secure-badge"><partial name="_Icon" model="@("lock")" /> Secure form</span>
         </div>
     </header>
     <main id="main" class="flex-grow-1 py-4 py-lg-5">

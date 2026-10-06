@@ -83,7 +83,7 @@ public sealed class LinkBuilder(IHttpContextAccessor http, IOptions<AppOptions> 
     public string RecordVerifyUrl(string recordKey) => Absolute($"/records/{Uri.EscapeDataString(recordKey)}/verify");
 }
 
-/// <summary>Formats UTC timestamps in the portal's U.S. time zone.</summary>
+/// <summary>Formats UTC timestamps in the portal's configured time zone (App:TimeZone).</summary>
 public sealed class TimeDisplay
 {
     private static readonly Dictionary<string, string> Abbreviations = new(StringComparer.OrdinalIgnoreCase)
@@ -95,6 +95,7 @@ public sealed class TimeDisplay
         ["America/Los_Angeles"] = "PT", ["Pacific Standard Time"] = "PT",
         ["America/Anchorage"] = "AKT", ["Alaskan Standard Time"] = "AKT",
         ["Pacific/Honolulu"] = "HT", ["Hawaiian Standard Time"] = "HT",
+        ["Asia/Karachi"] = "PKT", ["Pakistan Standard Time"] = "PKT",
     };
 
     private readonly TimeZoneInfo _zone;
@@ -109,6 +110,13 @@ public sealed class TimeDisplay
     public string Abbreviation { get; }
 
     public DateTimeOffset ToLocal(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, _zone);
+
+    /// <summary>UTC instant of local midnight (portal time zone) on the day containing <paramref name="utc"/>.</summary>
+    public DateTime StartOfLocalDayUtc(DateTimeOffset utc)
+    {
+        var local = ToLocal(utc);
+        return new DateTimeOffset(local.Date, local.Offset).UtcDateTime;
+    }
     public DateTimeOffset ToLocal(DateTime utc) => ToLocal(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)));
 
     public string Date(DateTimeOffset? utc) => utc is null ? "—" : ToLocal(utc.Value).ToString("MM/dd/yyyy");

@@ -1,55 +1,116 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Store contact verification made simple";
+    ViewData["Title"] = "Call desk for store outreach";
 }
-<section class="hero py-4 py-lg-5">
-    <div class="row align-items-center g-5">
-        <div class="col-lg-6">
-            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis mb-3">Secure · Simple · Built for U.S. businesses</span>
-            <h1 class="display-5 fw-bold mb-3">Verify store and emergency contact records in minutes.</h1>
-            <p class="lead text-secondary mb-4">
-                Upload a CSV, pick a record, check out securely, and send a private form so the store can fill in
-                anything that's missing. Their answers flow straight back into your record for a final review.
-            </p>
-            <div class="d-flex flex-wrap gap-3">
-                <a class="btn btn-primary btn-lg px-4" asp-page="/Account/Register">Create a free account</a>
-                <a class="btn btn-outline-secondary btn-lg px-4" asp-page="/Account/Login">Sign in</a>
+<section class="home-hero">
+    <div class="container-xl">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <span class="hero-pill"><span class="live-dot" aria-hidden="true"></span> Built for callers &amp; marketing teams</span>
+                <h1 class="display-5 fw-bold mt-3 mb-3">Turn your call list into <span class="text-gradient">confirmed, paid</span> store records.</h1>
+                <p class="lead hero-lead mb-4">
+                    Upload a call list, dial stores with one click, log every outcome and note, then send a secure form so the
+                    store completes its details and billing — you verify, confirm and take payment.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a class="btn btn-call btn-lg px-4" asp-page="/Account/Register"><partial name="_Icon" model="@("phone")" /> Start calling free</a>
+                    <a class="btn btn-outline-light btn-lg px-4" asp-page="/Account/Login">Sign in</a>
+                </div>
+                <ul class="hero-trust list-unstyled d-flex flex-wrap gap-3 mt-4 mb-0 small">
+                    <li><partial name="_Icon" model="@("lock")" /> Call lists never stored</li>
+                    <li><partial name="_Icon" model="@("shield")" /> PCI-compliant payments</li>
+                    <li><partial name="_Icon" model="@("clock")" /> Times in @Time.Abbreviation</li>
+                </ul>
             </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card shadow-sm border-0 hero-card">
-                <div class="card-body p-4">
-                    <h2 class="h6 text-uppercase text-muted mb-3">How it works</h2>
-                    <ol class="steps-list list-unstyled mb-0">
-                        <li><span class="step-num">1</span><div><strong>Upload your CSV</strong><br /><span class="text-muted">Used only for your current session — never stored permanently.</span></div></li>
-                        <li><span class="step-num">2</span><div><strong>Select a record &amp; check out</strong><br /><span class="text-muted">Pay securely with Visa, Mastercard, American Express or Discover.</span></div></li>
-                        <li><span class="step-num">3</span><div><strong>Share the form</strong><br /><span class="text-muted">Send a private link by email, text message or WhatsApp.</span></div></li>
-                        <li><span class="step-num">4</span><div><strong>Verify &amp; confirm</strong><br /><span class="text-muted">Review everything in one place and get your receipt.</span></div></li>
-                    </ol>
+            <div class="col-lg-6">
+                @* Static product preview of the call desk (decorative). *@
+                <div class="preview-window" aria-hidden="true">
+                    <div class="preview-bar"><span></span><span></span><span></span><em>Call desk</em></div>
+                    <div class="preview-body">
+                        <div class="preview-active">
+                            <span class="live-dot"></span>
+                            <div class="flex-grow-1"><strong>On call: Main Street Market</strong><small>Contact ID C-1001 · 02:47</small></div>
+                            <span class="preview-btn preview-btn-danger">End call</span>
+                        </div>
+                        <div class="preview-kpis">
+                            <div><small>Calls today</small><b>38</b></div>
+                            <div><small>Interested</small><b class="text-success">12</b></div>
+                            <div><small>Follow-ups</small><b>9</b></div>
+                            <div><small>Completed</small><b>7</b></div>
+                        </div>
+                        <div class="preview-table">
+                            <div class="preview-row head"><span>Store</span><span>Phone</span><span>Outcome</span><span></span></div>
+                            <div class="preview-row"><span>Harbor View Grocery</span><span class="dial">&#9742; (207) 555-0175</span><span><i class="pill pill-success">Interested</i></span><span class="preview-btn">Verify</span></div>
+                            <div class="preview-row"><span>Desert Sun Pharmacy</span><span class="dial">&#9742; 602-555-0123</span><span><i class="pill pill-warning">Call back</i></span><span class="preview-btn">Continue</span></div>
+                            <div class="preview-row"><span>Bayou Hardware</span><span class="dial">&#9742; 504-555-0101</span><span><i class="pill">No answer</i></span><span class="preview-btn preview-btn-primary">Proceed</span></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<section class="row g-4 mt-2">
-    <div class="col-md-4">
-        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
-            <h3 class="h5">Private by design</h3>
-            <p class="text-muted mb-0">Uploaded CSV data lives only in an encrypted, expiring workspace that only you can see.</p>
-        </div></div>
+<section class="home-section" id="features">
+    <div class="container-xl">
+        <div class="section-head text-center mx-auto">
+            <span class="eyebrow">Features</span>
+            <h2 class="h1 fw-bold mt-2">Everything a caller needs, nothing they don't</h2>
+            <p class="text-muted lead mb-0">One screen for the whole conversation — from the first ring to the receipt.</p>
+        </div>
+        <div class="row g-4 mt-2">
+            @{
+                var features = new (string Icon, string Title, string Text)[]
+                {
+                    ("headset", "Call desk & queue", "Your call list as a queue with a Next call button, live call timer and today's stats."),
+                    ("phone", "Click-to-call", "Every valid phone number is a dial button. Dialing starts the call timer automatically."),
+                    ("note", "Outcomes & notes", "Interested, call back, no answer… plus notes for every call, saved to the team call log."),
+                    ("repeat", "Call history", "Call again any time — every call to a store is kept, even when you upload the list again."),
+                    ("send", "Secure store form", "Share a private link by email, SMS or WhatsApp. The store fills in its details and billing."),
+                    ("card", "Verify & get paid", "Review the answers, confirm and take payment on a PCI-compliant page. Receipt included."),
+                };
+            }
+            @foreach (var f in features)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100">
+                        <span class="feature-icon"><partial name="_Icon" model="@f.Icon" /></span>
+                        <h3 class="h5 mt-3">@f.Title</h3>
+                        <p class="text-muted mb-0">@f.Text</p>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
-    <div class="col-md-4">
-        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
-            <h3 class="h5">PCI-compliant checkout</h3>
-            <p class="text-muted mb-0">Card details are entered on our payment processor's secure page. We never see or store them.</p>
-        </div></div>
+</section>
+
+<section class="home-section home-steps" id="how-it-works">
+    <div class="container-xl">
+        <div class="section-head text-center mx-auto">
+            <span class="eyebrow">How it works</span>
+            <h2 class="h1 fw-bold mt-2">From call list to receipt in four steps</h2>
+        </div>
+        <ol class="steps-grid list-unstyled row g-4 mt-2 mb-0">
+            <li class="col-md-6 col-lg-3"><div class="step-card"><span class="step-num">1</span><h3 class="h6">Upload your call list</h3><p class="text-muted small mb-0">A CSV of stores. Missing columns are fine — it's never stored permanently.</p></div></li>
+            <li class="col-md-6 col-lg-3"><div class="step-card"><span class="step-num">2</span><h3 class="h6">Call &amp; log the outcome</h3><p class="text-muted small mb-0">Click to dial, see every detail in a popup, record the outcome and notes.</p></div></li>
+            <li class="col-md-6 col-lg-3"><div class="step-card"><span class="step-num">3</span><h3 class="h6">Share the form</h3><p class="text-muted small mb-0">The store completes missing details and its billing information securely.</p></div></li>
+            <li class="col-md-6 col-lg-3"><div class="step-card"><span class="step-num">4</span><h3 class="h6">Verify, confirm &amp; get paid</h3><p class="text-muted small mb-0">Check everything in one place, confirm, take payment and download the receipt.</p></div></li>
+        </ol>
     </div>
-    <div class="col-md-4">
-        <div class="feature card h-100 border-0 shadow-sm"><div class="card-body p-4">
-            <h3 class="h5">No copy &amp; paste</h3>
-            <p class="text-muted mb-0">When the recipient submits the form, your record updates automatically and is ready to verify.</p>
-        </div></div>
+</section>
+
+<section class="home-section pt-0">
+    <div class="container-xl">
+        <div class="cta-band d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4">
+            <div>
+                <h2 class="h3 fw-bold mb-1">Ready to make your first call?</h2>
+                <p class="mb-0">Create an account, upload your list and start dialing in minutes.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-call btn-lg px-4" asp-page="/Account/Register">Get started</a>
+                <a class="btn btn-outline-light btn-lg px-4" asp-page="/Account/Login">Sign in</a>
+            </div>
+        </div>
     </div>
 </section>

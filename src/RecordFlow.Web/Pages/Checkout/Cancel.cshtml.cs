@@ -14,15 +14,13 @@ public class CancelModel(RecordWorkflowService workflow) : PortalPageModel
 
         if (result.Order.Status == OrderStatus.Paid)
         {
-            // The payment completed before the cancel arrived – continue normally.
-            return result.RecordKey is null
-                ? RedirectToPage("/Receipts/Details", new { id = result.Order.PublicId })
-                : RedirectToPage("/Records/Payment", new { key = result.RecordKey });
+            // The payment completed before the cancel arrived – the record is complete.
+            return RedirectToPage("/Receipts/Details", new { id = result.Order.PublicId });
         }
 
-        FlashInfo("Payment was canceled and you were not charged. You can review your details and try again.");
+        FlashInfo("Payment was canceled and you were not charged. You can review the details and confirm again.");
         return result.RecordKey is null
             ? RedirectToPage("/Dashboard")
-            : RedirectToPage("/Records/Checkout", new { key = result.RecordKey });
+            : RedirectToPage("/Records/Open", new { key = result.RecordKey });
     }
 }

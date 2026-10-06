@@ -7,7 +7,7 @@ namespace RecordFlow.Infrastructure.Data;
 
 /// <summary>
 /// Permanent application database. Holds accounts, configuration, orders, finalized business
-/// records and audit logs. Uploaded CSV files and in-progress working data never enter this context.
+/// records, call logs and audit logs. Uploaded CSV files and in-progress working data never enter this context.
 /// </summary>
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : IdentityDbContext<ApplicationUser>(options), IDataProtectionKeyContext
@@ -18,6 +18,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<FinalizedRecord> FinalizedRecords => Set<FinalizedRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<CallLog> CallLogs => Set<CallLog>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
@@ -136,6 +137,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(a => a.EntityId).HasMaxLength(100);
             e.Property(a => a.Details).HasMaxLength(2000);
             e.Property(a => a.IpAddress).HasMaxLength(64);
+        });
+
+        builder.Entity<CallLog>(e =>
+        {
+            e.HasIndex(c => c.PublicId).IsUnique();
+            e.HasIndex(c => new { c.UserId, c.ContactId, c.StartedAtUtc });
+            e.HasIndex(c => c.StartedAtUtc);
+            e.Property(c => c.UserId).HasMaxLength(450).IsRequired();
+            e.Property(c => c.ContactId).HasMaxLength(100).IsRequired();
+            e.Property(c => c.StoreName).HasMaxLength(250);
+            e.Property(c => c.SourceFile).HasMaxLength(100);
+            e.Property(c => c.Outcome).HasConversion<string>().HasMaxLength(20);
+            e.Property(c => c.Notes).HasMaxLength(CallLog.MaxNotesLength);
+            e.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<AppSetting>(e =>

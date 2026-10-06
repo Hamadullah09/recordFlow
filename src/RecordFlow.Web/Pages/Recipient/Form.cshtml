@@ -37,7 +37,7 @@ else
         <h1 class="h3 mb-1">Please review and complete this information</h1>
         <p class="text-muted mb-0">
             Requested by <strong>@shared.RequestedBy</strong>@if (!string.IsNullOrEmpty(shared.CompanyName)) {<text> from <strong>@shared.CompanyName</strong></text>}
-            for <strong>@(r.StoreName ?? "a store record")</strong>.
+            for <strong>@(r.StoreName ?? "a store record")</strong>. Add any missing details and correct the billing information if needed.
         </p>
     </div>
 
@@ -89,10 +89,10 @@ else
             </form>
         </div>
         <div class="col-lg-4 order-1 order-lg-2">
-            @if (shared.Order is not null)
+            @if (Model.Price is not null)
             {
-                <partial name="_OrderReadOnly" model="shared.Order" />
-                <p class="small text-muted mt-2">Order and billing details are shown for reference and can't be changed.</p>
+                <partial name="_PriceSummary" model="Model.Price" />
+                <p class="small text-muted mt-2">Please check the <strong>Billing &amp; Payment Details</strong> section and correct anything that's wrong.</p>
             }
         </div>
     </div>

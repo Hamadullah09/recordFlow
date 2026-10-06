@@ -1,0 +1,23 @@
+@model RecordFlow.Web.Pages.Records.PriceSummaryModel
+@* Amount that will be charged after the owner confirms. No order exists yet, so nothing here is editable. *@
+<div class="card border-0 shadow-sm readonly-card">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Payment summary</h2></div>
+    <div class="card-body small">
+        <div class="d-flex justify-content-between"><span class="fw-semibold">@Model.Pricing.ServiceName</span><span>@Model.Quote.Subtotal.ToString("C")</span></div>
+        @if (!string.IsNullOrWhiteSpace(Model.Pricing.ServiceDescription))
+        {
+            <p class="text-muted mb-2">@Model.Pricing.ServiceDescription</p>
+        }
+        @if (Model.Quote.Tax > 0)
+        {
+            <div class="d-flex justify-content-between"><span>Sales tax (@Model.Pricing.TaxRatePercent.ToString("0.###")%)</span><span>@Model.Quote.Tax.ToString("C")</span></div>
+        }
+        @if (Model.Quote.Fee > 0)
+        {
+            <div class="d-flex justify-content-between"><span>Processing fee</span><span>@Model.Quote.Fee.ToString("C")</span></div>
+        }
+        <hr class="my-2" />
+        <div class="d-flex justify-content-between fs-6 fw-bold"><span>Total (USD)</span><span>@Model.Quote.Total.ToString("C")</span></div>
+        <p class="text-muted mt-2 mb-0">@Model.Note</p>
+    </div>
+</div>

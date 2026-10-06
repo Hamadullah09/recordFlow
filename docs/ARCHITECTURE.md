@@ -43,6 +43,7 @@ flowchart LR
 | Six admin column definitions, form field definitions, pricing | SQL Server (`AdminColumns`, `FormFields`, `AppSettings`) | Permanent |
 | Orders / payment status (no card data) | SQL Server (`Orders`) | Permanent |
 | Finalized business records (final confirmed values only) | SQL Server (`FinalizedRecords`) | Permanent |
+| Call log: each call's start/end, outcome, notes, caller, Contact ID and store name (no other CSV data) | SQL Server (`CallLogs`), written as the call happens | Permanent |
 | Audit log | SQL Server (`AuditLogs`) | Permanent |
 | Data Protection key ring | SQL Server (`DataProtectionKeys`), optionally encrypted with a certificate | Permanent |
 
@@ -64,29 +65,38 @@ Expired entries are evicted by the cache itself (memory cache scan / Redis TTL),
 ```mermaid
 stateDiagram-v2
     [*] --> Imported: CSV uploaded
-    Imported --> CheckoutStarted: billing details
-    CheckoutStarted --> AwaitingPayment: Proceed to payment (order created)
-    AwaitingPayment --> CheckoutStarted: declined / canceled / expired
-    AwaitingPayment --> Paid: provider confirms payment
-    Paid --> FormGenerated: Generate form
+    Imported --> FormGenerated: Proceed (form incl. billing section)
     FormGenerated --> SharedPending: Share form (secure link)
     SharedPending --> SharedPending: new link
-    SharedPending --> ReadyForVerification: recipient submits
+    SharedPending --> ReadyForVerification: recipient submits (store + billing details)
     ReadyForVerification --> SharedPending: new link for more changes
-    FormGenerated --> Verified: owner completes & confirms
-    SharedPending --> Verified: owner confirms
-    ReadyForVerification --> Verified: owner confirms
+    FormGenerated --> AwaitingPayment: owner confirms & pays (order created, record locked)
+    SharedPending --> AwaitingPayment: owner confirms & pays
+    ReadyForVerification --> AwaitingPayment: owner confirms & pays
+    AwaitingPayment --> ReadyForVerification: declined / canceled / expired
+    AwaitingPayment --> Verified: provider confirms payment
     Verified --> [*]: FinalizedRecord saved, CSV data purged
 ```
 
+The dashboard is a call desk: clicking a store (or **Next call**) opens a popup with all its CSV values and starts its
+first call; **End call** sets the close time and **Call again** adds another call. Each record keeps a `Calls` list
+(start/end), the latest call drives the Time / Close Time columns, and only one call is active at a time. Every call is also
+saved to the permanent `CallLogs` table (keyed by the call's id) when it starts, ends or gets an outcome; uploading a
+list again brings back that caller's earlier calls for the same Contact IDs, ending a session closes any open call, and
+admins see everything under **Admin Portal → Call log** (filter + CSV export). Each call can carry an outcome (Interested, Not interested, Call back, No answer, Left
+voicemail, Wrong number) and notes; **Next call** picks stores never called first, then follow-ups (call back / no
+answer / voicemail). Valid U.S. phone numbers in the row are shown as `tel:` click-to-call links. When bank payments are enabled, the billing section includes a **Payment method**
+choice for the recipient, which pre-selects the method on the Verify page.
+
 The order's status in SQL Server is the source of truth for payment. Pages reconcile the record status with the
-order on every load, so a webhook that arrives while the user is away is picked up automatically.
+order on every load (and the dashboard refreshes records awaiting payment), so a webhook that arrives while the user
+is away completes the record automatically.
 
 Relationship maintained throughout: **CSV row → WorkingRecord (key) → Order (PublicId) → Share (token hash) →
 recipient response (field `Source = Recipient`) → FinalizedRecord (ConfirmationNumber)**.
 
-If a workspace expires after payment, re-uploading the CSV re-links paid-but-unconfirmed orders to their Contact IDs,
-so the customer continues at "Generate form" without paying twice.
+If a workspace expires while the payment is in progress, re-uploading the CSV re-links paid-but-unfinalized orders to
+their Contact IDs; confirming the record again completes it against that order without a second charge.
 
 ## Dynamic admin columns
 

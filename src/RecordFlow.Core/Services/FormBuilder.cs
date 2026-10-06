@@ -11,12 +11,45 @@ namespace RecordFlow.Core.Services;
 public static class FormBuilder
 {
     public const string AdditionalFieldPrefix = "csv_";
+    public const string BillingFieldPrefix = "billing_";
+
+    public const string BillingName = "billing_name";
+    public const string BillingEmail = "billing_email";
+    public const string BillingAddress1 = "billing_address1";
+    public const string BillingAddress2 = "billing_address2";
+    public const string BillingCity = "billing_city";
+    public const string BillingState = "billing_state";
+    public const string BillingZip = "billing_zip";
+    public const string BillingMethod = "billing_method";
+
+    /// <summary>Payment method choices shown to the recipient (stored as the display text).</summary>
+    public static readonly IReadOnlyList<PaymentMethodKind> PaymentMethods = [PaymentMethodKind.Card, PaymentMethodKind.BankAccount];
+
+    public static PaymentMethodKind? ParsePaymentMethod(string? value) =>
+        PaymentMethods.Cast<PaymentMethodKind?>().FirstOrDefault(m => string.Equals(m!.Value.Name(), value, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Billing fields added to every form. They travel to the recipient with the rest of the form so the store can
+    /// fill in or correct them; the order is created from them only after the owner confirms. Card numbers are
+    /// never part of the form – they are entered on the payment provider's hosted page.
+    /// </summary>
+    private static readonly (string Key, string Label, FieldType Type, bool Required, int MaxLength, string? PrefillFrom)[] BillingDefinitions =
+    [
+        (BillingName, "Name on billing", FieldType.Text, true, 100, "OwnerName"),
+        (BillingEmail, "Billing email", FieldType.Email, true, 254, "OwnerEmail"),
+        (BillingAddress1, "Billing street address", FieldType.Text, true, 200, "AddressLine1"),
+        (BillingAddress2, "Apt, suite, etc.", FieldType.Text, false, 200, "AddressLine2"),
+        (BillingCity, "Billing city", FieldType.Text, true, 100, "City"),
+        (BillingState, "Billing state", FieldType.State, true, 0, "State"),
+        (BillingZip, "Billing ZIP code", FieldType.ZipCode, true, 10, "ZipCode"),
+    ];
 
     public static List<WorkingField> Build(
         IEnumerable<FormFieldDefinition> definitions,
         WorkingRecord record,
         IReadOnlyList<string> headers,
-        string? contactIdHeader)
+        string? contactIdHeader,
+        bool offerBankAccount = false)
     {
         var fields = new List<WorkingField>();
         var consumedHeaders = new HashSet<string>(StringComparer.Ordinal);
@@ -28,7 +61,9 @@ public static class FormBuilder
             .ToDictionary(g => g.Key, g => g.First());
 
         var order = 0;
-        foreach (var def in definitions.Where(d => d.IsActive).OrderBy(d => d.Section).ThenBy(d => d.DisplayOrder).ThenBy(d => d.Label))
+        foreach (var def in definitions
+                     .Where(d => d.IsActive && !d.Key.StartsWith(BillingFieldPrefix, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(d => d.Section).ThenBy(d => d.DisplayOrder).ThenBy(d => d.Label))
         {
             string? csvValue = null;
             foreach (var alias in def.NormalizedAliases())
@@ -85,7 +120,82 @@ public static class FormBuilder
             });
         }
 
+        foreach (var (key, label, type, required, maxLength, prefillFrom) in BillingDefinitions)
+        {
+            // Start from the matching store/owner value so the recipient usually only has to confirm it.
+            var prefill = prefillFrom is null ? null : fields.FirstOrDefault(f => f.Key == prefillFrom)?.Value;
+            fields.Add(new WorkingField
+            {
+                Key = key,
+                Label = label,
+                Section = FormSection.Billing,
+                FieldType = type,
+                IsRequired = required,
+                RecipientEditable = true,
+                MaxLength = maxLength > 0 ? maxLength : 250,
+                Order = order++,
+                CsvValue = prefill,
+                Value = prefill,
+                Source = prefill is null ? FieldSource.Empty : FieldSource.Csv,
+            });
+        }
+
+        // The recipient chooses how the store pays; the card or bank details themselves are only ever entered on the
+        // payment provider's page. Without bank payments enabled, card is the only method so no choice is shown.
+        if (offerBankAccount)
+        {
+            fields.Add(new WorkingField
+            {
+                Key = BillingMethod,
+                Label = "Payment method",
+                Section = FormSection.Billing,
+                FieldType = FieldType.Select,
+                IsRequired = true,
+                RecipientEditable = true,
+                HelpText = "Card or bank details are entered later on the secure payment page, never on this form.",
+                Options = PaymentMethods.Select(m => m.Name()).ToList(),
+                Order = order++,
+                Value = PaymentMethodKind.Card.Name(),   // default; no badge until someone changes it
+                Source = FieldSource.Empty,
+            });
+        }
+
         return fields;
+    }
+
+    /// <summary>The payment method chosen on the form (card when the form offers no choice).</summary>
+    public static PaymentMethodKind ChosenPaymentMethod(WorkingRecord record) =>
+        ParsePaymentMethod(record.FindField(BillingMethod)?.Value) ?? PaymentMethodKind.Card;
+
+    /// <summary>
+    /// Reads the billing section into checkout details. Returns null with the problems found when a required
+    /// billing value is missing or invalid.
+    /// </summary>
+    public static CheckoutDetails? ReadBilling(WorkingRecord record, PaymentMethodKind method, out List<string> problems)
+    {
+        problems = [];
+        foreach (var def in BillingDefinitions)
+        {
+            var field = record.FindField(def.Key);
+            var error = field is null
+                ? def.Required ? $"{def.Label} is required." : null
+                : FieldValidator.Validate(field, field.Value);
+            if (error is not null) problems.Add(error);
+        }
+        if (problems.Count > 0) return null;
+
+        string? Value(string key) => record.FindField(key)?.Value?.Trim();
+        return new CheckoutDetails
+        {
+            BillingName = Value(BillingName)!,
+            BillingEmail = Value(BillingEmail)!,
+            AddressLine1 = Value(BillingAddress1)!,
+            AddressLine2 = Value(BillingAddress2),
+            City = Value(BillingCity)!,
+            State = UsStates.Normalize(Value(BillingState))!,
+            ZipCode = Value(BillingZip)!,
+            PaymentMethod = method,
+        };
     }
 
     /// <summary>Best-effort store name for display (form field first, then CSV).</summary>

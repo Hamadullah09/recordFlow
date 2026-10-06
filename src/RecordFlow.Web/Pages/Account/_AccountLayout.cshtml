@@ -1,14 +1,45 @@
 @{
     Layout = "_Layout";
+    // Signed-in account pages (profile, password) sit inside the portal shell; sign-in pages get the brand panel.
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var wide = ViewData["AuthWide"] is true;
 }
-<div class="auth-wrapper mx-auto @(ViewData["AuthWide"] is true ? "auth-wide" : "")">
-    <div class="card border-0 shadow-sm auth-card">
-        <div class="card-body p-4 p-md-5">
-            @RenderBody()
+@if (signedIn)
+{
+    <div class="auth-wrapper @(wide ? "auth-wide" : "")">
+        <div class="card border-0 shadow-sm auth-card">
+            <div class="card-body p-4 p-md-5">
+                @RenderBody()
+            </div>
+        </div>
+        @await RenderSectionAsync("Below", required: false)
+    </div>
+}
+else
+{
+    <div class="auth-split mx-auto @(wide ? "auth-split-wide" : "")">
+        <section class="auth-brand d-none d-lg-flex" aria-label="About the call desk">
+            <div>
+                <span class="eyebrow">Call desk for store outreach</span>
+                <h2 class="h3 mt-2 mb-3">Every call, form and payment in one place.</h2>
+                <ul class="auth-points list-unstyled mb-0">
+                    <li><span class="point-icon"><partial name="_Icon" model="@("phone")" /></span><span>Click-to-call, live call timer and call history for every store.</span></li>
+                    <li><span class="point-icon"><partial name="_Icon" model="@("note")" /></span><span>Outcomes and notes saved automatically to your team's call log.</span></li>
+                    <li><span class="point-icon"><partial name="_Icon" model="@("send")" /></span><span>Send a secure form, verify the answers and take payment.</span></li>
+                </ul>
+            </div>
+            <p class="small mb-0 auth-brand-foot"><partial name="_Icon" model="@("lock")" /> Call lists are processed in memory and never stored.</p>
+        </section>
+        <div class="card border-0 shadow-sm auth-card">
+            <div class="card-body p-4 p-md-5">
+                @RenderBody()
+            </div>
         </div>
     </div>
-    @await RenderSectionAsync("Below", required: false)
-</div>
+    <div class="auth-below mx-auto">
+        @await RenderSectionAsync("Below", required: false)
+    </div>
+}
 @section Scripts {
     @await RenderSectionAsync("Scripts", required: false)
 }
