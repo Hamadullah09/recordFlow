@@ -34,14 +34,28 @@ jobs:
     name: Build & test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore RecordFlow.sln
+        # nuget.org downloads occasionally drop on hosted runners; retry with a growing pause before failing.
+        shell: pwsh
+        run: |
+          $attempts = 4
+          for ($i = 1; $i -le $attempts; $i++) {
+            dotnet restore RecordFlow.sln
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($i -lt $attempts) {
+              $wait = 15 * $i
+              "::warning::Restore failed (attempt $i of $attempts); retrying in $wait seconds."
+              Start-Sleep -Seconds $wait
+            }
+          }
+          "::error::Restore failed after $attempts attempts."
+          exit 1
 
       - name: Build
         run: dotnet build RecordFlow.sln -c Release --no-restore
@@ -51,17 +65,18 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Publish
         run: dotnet publish src/RecordFlow.Web/RecordFlow.Web.csproj -c Release --no-build -o publish
 
       - name: Upload app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: recordflow-web
           path: publish
@@ -81,7 +96,7 @@ jobs:
       url: https://recordflow.sma-techno.net
     steps:
       - name: Download app
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: recordflow-web
           path: publish
