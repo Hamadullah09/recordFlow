@@ -50,7 +50,9 @@ public class DashboardModel(
     /// <summary>e.g. "Tuesday, Oct 6" in the portal time zone.</summary>
     public string TodayLabel => time.ToLocal(clock.GetUtcNow()).ToString("dddd, MMM d", System.Globalization.CultureInfo.InvariantCulture);
 
-    public async Task OnGetAsync(int p = 1, CancellationToken ct = default)
+    /// <param name="p">Page of the call queue.</param>
+    /// <param name="call">Key of a store to open; the queue jumps to the page that holds it.</param>
+    public async Task OnGetAsync(int p = 1, string? call = null, CancellationToken ct = default)
     {
         await workflow.RefreshPaymentsAsync(UserId, ct);
         Workspace = await workflow.GetWorkspaceAsync(UserId, ct);
@@ -95,6 +97,11 @@ public class DashboardModel(
         var list = filtered.ToList();
         FilteredCount = list.Count;
         TotalPages = Math.Max(1, (int)Math.Ceiling(FilteredCount / (double)PageSize));
+        if (!string.IsNullOrEmpty(call))
+        {
+            var callIndex = list.FindIndex(r => r.Key == call);
+            if (callIndex >= 0) p = callIndex / PageSize + 1;
+        }
         PageNumber = Math.Clamp(p, 1, TotalPages);
         Records = list.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
     }

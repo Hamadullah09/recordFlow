@@ -316,6 +316,11 @@ else
                             <button type="button" class="btn btn-sm btn-primary js-rm-outcome-save">Save outcome</button>
                         </div>
                     </section>
+                    <div class="alert alert-primary d-flex flex-wrap align-items-center gap-2 py-2 mb-3 d-none js-rm-next" role="status">
+                        <span class="small me-auto js-rm-next-text"></span>
+                        <button type="button" class="btn btn-sm btn-link js-rm-next-skip">Skip outcome</button>
+                        <button type="button" class="btn btn-sm btn-primary js-rm-next-go"><partial name="_Icon" model="@("phone")" /> Save &amp; call next</button>
+                    </div>
                     <div class="js-rm-loading text-muted text-center py-4">Loading record…</div>
                     <div class="row g-4">
                         <div class="col-md-7">

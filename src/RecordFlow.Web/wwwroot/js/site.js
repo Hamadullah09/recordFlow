@@ -102,6 +102,14 @@
         return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
     };
     const callApi = (key, action, body) => api(`/api/workspace/records/${encodeURIComponent(key)}/call/${action}`, 'POST', body);
+    const findRow = key => [...document.querySelectorAll('.js-record-row')].find(tr => tr.dataset.key === key);
+    const activeCallBanner = () => document.querySelector('.active-call');
+    // The store whose call is running right now (row on this page, or the "On call" bar for any page).
+    const liveCallKey = () => document.querySelector('.js-record-row.call-active')?.dataset.key ?? activeCallBanner()?.dataset.key ?? null;
+    const dashboardUrl = params => `/dashboard?${new URLSearchParams(params)}`;
+
+    // A store to open once the caller has dealt with the outcome of the call that just ended.
+    let pendingNext = null;   // { key, dial }
 
     const recordModalEl = document.getElementById('recordModal');
     let openRecord = null;
@@ -118,6 +126,7 @@
         const outcomeHint = q('.js-rm-outcome-hint');
         const outcomeOptions = [...recordModalEl.querySelectorAll('.js-rm-outcome-option')], notesEl = q('.js-rm-notes');
         const saveOutcomeButton = q('.js-rm-outcome-save'), clearOutcomeButton = q('.js-rm-outcome-clear');
+        const nextPrompt = q('.js-rm-next'), nextText = q('.js-rm-next-text'), nextGo = q('.js-rm-next-go'), nextSkip = q('.js-rm-next-skip');
         let outcomeDirty = false;
         let row = null, timer = null, startedAt = null, endedAt = null, changed = false, onCall = false, callCount = 0;
 
@@ -204,6 +213,29 @@
             row.querySelector('.js-call-end').textContent = d.callEnded ? d.callEndedText : '—';
             row.querySelector('.js-call-count').textContent = d.calls.length || '—';
             row.classList.toggle('call-active', onCall);
+            const banner = activeCallBanner();
+            if (!onCall && banner?.dataset.key === row.dataset.key) { banner.remove(); }
+
+            // After a call ends on the way to another store: ask for the outcome, then continue.
+            const showNext = !!pendingNext && !onCall && pendingNext.key !== row.dataset.key;
+            nextPrompt.classList.toggle('d-none', !showNext);
+            if (showNext) {
+                const nextId = findRow(pendingNext.key)?.getAttribute('aria-label')?.replace('Open details for ', '');
+                nextText.textContent = `Call ended. Add its outcome, then continue to ${nextId ? `Contact ID ${nextId}` : 'the next store'}.`;
+            }
+        }
+
+        // Bootstrap moves focus to the dialog when it finishes opening, so focus the outcome panel after that.
+        let modalShown = false;
+        recordModalEl.addEventListener('shown.bs.modal', () => { modalShown = true; });
+        recordModalEl.addEventListener('hide.bs.modal', () => { modalShown = false; });
+        function focusOutcome() {
+            if (outcomeSection.classList.contains('d-none')) { return; }
+            const focus = () => {
+                outcomeSection.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                outcomeSection.focus({ preventScroll: true });
+            };
+            if (modalShown) { focus(); } else { recordModalEl.addEventListener('shown.bs.modal', focus, { once: true }); }
         }
 
         async function run(action, body) {
@@ -212,7 +244,12 @@
         }
 
         // dial: the caller pressed a phone link, so make sure a call is running (a new one if the last call ended).
-        openRecord = async (tr, dial = false) => {
+        // focusOutcome: put the caller straight into the outcome panel (the call has just ended).
+        openRecord = async (tr, dial = false, { focusOutcome: wantOutcome = false } = {}) => {
+            // One call at a time: a running call on another store is ended first and its outcome asked for.
+            const live = liveCallKey();
+            if (live && live !== tr.dataset.key) { await endThenAskOutcome(live, { key: tr.dataset.key, dial }); return; }
+
             row = tr;
             const action = row.querySelector('.js-row-action');
             actionButton.textContent = action?.textContent.trim() || 'Open';
@@ -220,13 +257,46 @@
             title.textContent = row.getAttribute('aria-label')?.replace('Open details for ', 'Contact ID ') ?? 'Record';
             sub.textContent = '';
             statusBadge.textContent = '';
-            [fieldsTitle, fieldsEl, purged, historyTitle, endButton, againButton, dialButton, outcomeSection, outcomeHint].forEach(x => x.classList.add('d-none'));
+            [fieldsTitle, fieldsEl, purged, historyTitle, endButton, againButton, dialButton, outcomeSection, outcomeHint, nextPrompt].forEach(x => x.classList.add('d-none'));
             outcomeDirty = false;
             historyEl.replaceChildren();
             loading.classList.remove('d-none');
             modal.show();
-            if (await run('start') && dial && !onCall) { await run('again'); }
+            if (!(await run('start'))) { return; }
+            if (dial && !onCall) { await run('again'); }
+            if (wantOutcome) { focusOutcome(); }
         };
+
+        // Ends the running call, then shows that store with its outcome panel; `next` opens afterwards.
+        async function endThenAskOutcome(liveKey, next) {
+            try { await callApi(liveKey, 'end'); }
+            catch (e) { handleApiError(e); return; }
+            changed = true;
+            pendingNext = next;
+            const liveRow = findRow(liveKey);
+            if (liveRow) {
+                await openRecord(liveRow, false, { focusOutcome: true });
+                toast('Previous call ended — add its outcome first');
+            } else {
+                window.location.href = dashboardUrl({ call: liveKey, outcome: '1', next: next.key });
+            }
+        }
+
+        function goToNext() {
+            const next = pendingNext;
+            pendingNext = null;
+            if (!next) { return; }
+            const tr = findRow(next.key);
+            if (tr) { openRecord(tr, next.dial); } else { window.location.href = dashboardUrl({ call: next.key }); }
+        }
+        nextGo.addEventListener('click', async () => {
+            nextGo.disabled = true;
+            const hasOutcome = outcomeOptions.some(o => o.checked) || notesEl.value.trim() !== '';
+            const saved = !outcomeDirty || !hasOutcome || await saveOutcome();
+            nextGo.disabled = false;
+            if (saved) { outcomeDirty = false; goToNext(); }
+        });
+        nextSkip.addEventListener('click', () => { outcomeDirty = false; goToNext(); });
 
         document.querySelectorAll('.js-record-row').forEach(tr => {
             tr.addEventListener('click', e => {
@@ -256,8 +326,7 @@
             endButton.disabled = true;
             if (await run('end')) {
                 toast('Call ended — add the outcome and notes');
-                outcomeSection.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                outcomeSection.focus({ preventScroll: true });
+                focusOutcome();
             }
         });
         // Unsaved outcome/notes of the ended call are saved before a new call starts.
@@ -275,24 +344,31 @@
         recordModalEl.addEventListener('hidden.bs.modal', async () => {
             clearInterval(timer);
             timer = null;
+            pendingNext = null;   // closing the popup abandons the move to the next store
             if (outcomeDirty && row) { await saveOutcome(); }
             // Refresh the stats and the active-call banner after calls changed.
             if (changed) { window.location.reload(); }
         });
     }
 
-    const findRow = key => [...document.querySelectorAll('.js-record-row')].find(tr => tr.dataset.key === key);
-
-    // "Next call": open the next store straight away when it is on this page.
+    // "Next call": open the next store straight away when it is on this page (a running call is ended first).
     document.querySelectorAll('.js-next-call').forEach(link => link.addEventListener('click', e => {
         const tr = findRow(link.dataset.key);
         if (tr && openRecord) { e.preventDefault(); openRecord(tr); }
     }));
-    const requested = new URLSearchParams(window.location.search).get('call');
+
+    // ?call=<key> opens a store (the server shows the page that holds it); &outcome=1 focuses its outcome panel and
+    // &next=<key> continues to another store once that outcome is saved or skipped.
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('call');
     if (requested && openRecord) {
         const tr = findRow(requested);
-        if (tr) { openRecord(tr); }
-        history.replaceState(null, '', window.location.pathname + window.location.search.replace(/([?&])call=[^&]*&?/, '$1').replace(/[?&]$/, ''));
+        if (tr) {
+            if (params.get('next')) { pendingNext = { key: params.get('next'), dial: false }; }
+            openRecord(tr, false, { focusOutcome: params.has('outcome') });
+        }
+        ['call', 'next', 'outcome'].forEach(k => params.delete(k));
+        history.replaceState(null, '', window.location.pathname + (params.size ? `?${params}` : ''));
     }
 
     // Active call banner: live duration, open the store, end the call.
@@ -307,10 +383,20 @@
             const tr = findRow(activeCall.dataset.key);
             if (tr && openRecord) { openRecord(tr); } else { window.location.href = `/dashboard?call=${encodeURIComponent(activeCall.dataset.key)}`; }
         });
-        activeCall.querySelector('.js-active-end').addEventListener('click', async e => {
-            e.currentTarget.disabled = true;
-            try { await callApi(activeCall.dataset.key, 'end'); window.location.reload(); }
-            catch (err) { e.currentTarget.disabled = false; handleApiError(err); }
+        // Ending from the bar opens the store with its outcome panel, so the outcome is never skipped.
+        const endFromBar = activeCall.querySelector('.js-active-end');
+        endFromBar.addEventListener('click', async () => {
+            const key = activeCall.dataset.key;
+            endFromBar.disabled = true;
+            try { await callApi(key, 'end'); }
+            catch (err) { endFromBar.disabled = false; handleApiError(err); return; }
+            const tr = findRow(key);
+            if (tr && openRecord) {
+                await openRecord(tr, false, { focusOutcome: true });
+                toast('Call ended — add the outcome and notes');
+            } else {
+                window.location.href = dashboardUrl({ call: key, outcome: '1' });
+            }
         });
     }
 
