@@ -243,20 +243,25 @@ public class WorkflowIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Outcome_and_notes_are_saved_on_the_latest_call()
+    public async Task Outcome_and_notes_are_saved_on_the_latest_call_after_it_ends()
     {
         var key = await ImportAsync();
         await Assert.ThrowsAsync<WorkflowException>(() =>                  // no call yet
             _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.Interested, null));
 
         await _workflow.StartCallAsync("user-a", key);
+        await Assert.ThrowsAsync<WorkflowException>(() =>                  // not while the call is still live
+            _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.CallBack, "Too early"));
+        Assert.Null((await _workflow.LoadRecordAsync("user-a", key))!.Record.LastCall!.Outcome);
+
+        await _workflow.EndCallAsync("user-a", key);
         var first = await _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.CallBack, "  Owner busy, call after 5 PM  ");
         Assert.Equal(CallOutcome.CallBack, first.Record.LastCall!.Outcome);
         Assert.Equal("Owner busy, call after 5 PM", first.Record.LastCall.Notes);
         Assert.True(first.Record.LastCall.NeedsFollowUp);
 
-        await _workflow.EndCallAsync("user-a", key);
         await _workflow.StartCallAsync("user-a", key, again: true);
+        await _workflow.EndCallAsync("user-a", key);
         var second = await _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.Interested, null);
 
         Assert.Equal(CallOutcome.CallBack, second.Record.Calls[0].Outcome);   // earlier call keeps its outcome
@@ -280,8 +285,8 @@ public class WorkflowIntegrationTests : IDisposable
         Assert.Equal(("user-a", "C-1", "Main Street Market", "stores.csv"), (log.UserId, log.ContactId, log.StoreName, log.SourceFile));
         Assert.Null(log.EndedAtUtc);
 
-        await _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.CallBack, "Call after 5 PM");
         await _workflow.EndCallAsync("user-a", key);
+        await _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.CallBack, "Call after 5 PM");
         log = await _db.CallLogs.AsNoTracking().SingleAsync();
         Assert.Equal(CallOutcome.CallBack, log.Outcome);
         Assert.Equal("Call after 5 PM", log.Notes);
@@ -292,13 +297,25 @@ public class WorkflowIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Ending_the_session_closes_a_live_call_in_the_log()
+    {
+        var key = await ImportAsync();
+        await _workflow.StartCallAsync("user-a", key);
+
+        await _workflow.EndSessionAsync("user-a", "test");
+
+        Assert.NotNull((await _db.CallLogs.AsNoTracking().SingleAsync()).EndedAtUtc);
+    }
+
+    [Fact]
     public async Task Call_history_comes_back_when_the_list_is_uploaded_again()
     {
         var key = await ImportAsync();
         await _workflow.StartCallAsync("user-a", key);
+        await _workflow.EndCallAsync("user-a", key);
         await _workflow.SetCallOutcomeAsync("user-a", key, CallOutcome.Interested, "Wants the form by email");
 
-        await _workflow.EndSessionAsync("user-a", "test");                 // open call is closed in the log
+        await _workflow.EndSessionAsync("user-a", "test");
         Assert.NotNull((await _db.CallLogs.AsNoTracking().SingleAsync()).EndedAtUtc);
 
         Assert.Null(await _workflow.GetWorkspaceAsync("user-a"));

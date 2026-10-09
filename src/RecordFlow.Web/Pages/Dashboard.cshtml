@@ -278,7 +278,7 @@ else
     {
         <p class="small text-muted mt-2">* Required before confirmation.</p>
     }
-    <p class="small text-muted mt-2">Click a store (or <strong>Next call</strong>) to open its details and start the call timer. <strong>End call</strong> records the close time; <strong>Call again</strong> starts a new call for the same store.</p>
+    <p class="small text-muted mt-2">Click a store (or <strong>Next call</strong>) to open its details and start the call timer. <strong>End call</strong> records the close time and lets you add the call outcome and notes; <strong>Call again</strong> starts a new call for the same store.</p>
 
     <div class="modal fade" id="recordModal" tabindex="-1" aria-labelledby="recordModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
@@ -298,7 +298,8 @@ else
                         <span class="badge rounded-pill ms-auto js-rm-status"></span>
                         <a class="btn btn-success d-none js-rm-dial js-dial" href="#"><partial name="_Icon" model="@("phone")" /> <span class="js-rm-dial-number"></span></a>
                     </div>
-                    <section class="call-outcome mb-3 d-none js-rm-outcome" aria-labelledby="rmOutcomeTitle">
+                    <p class="small text-muted mb-3 d-none js-rm-outcome-hint">Call outcome and notes can be added once you end the call.</p>
+                    <section class="call-outcome mb-3 d-none js-rm-outcome" aria-labelledby="rmOutcomeTitle" tabindex="-1">
                         <h3 class="h6 mb-2" id="rmOutcomeTitle">Call outcome <span class="text-muted fw-normal small js-rm-outcome-for"></span></h3>
                         <div class="d-flex flex-wrap gap-2 mb-2" role="radiogroup" aria-labelledby="rmOutcomeTitle">
                             @foreach (var o in Enum.GetValues<CallOutcome>())

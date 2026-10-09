@@ -115,6 +115,7 @@
         const endButton = q('.js-rm-end-call'), againButton = q('.js-rm-call-again'), actionButton = q('.js-rm-action');
         const dialButton = q('.js-rm-dial'), dialNumber = q('.js-rm-dial-number');
         const outcomeSection = q('.js-rm-outcome'), outcomeFor = q('.js-rm-outcome-for'), outcomeState = q('.js-rm-outcome-state');
+        const outcomeHint = q('.js-rm-outcome-hint');
         const outcomeOptions = [...recordModalEl.querySelectorAll('.js-rm-outcome-option')], notesEl = q('.js-rm-notes');
         const saveOutcomeButton = q('.js-rm-outcome-save'), clearOutcomeButton = q('.js-rm-outcome-clear');
         let outcomeDirty = false;
@@ -178,9 +179,10 @@
                 historyEl.append(li);
             }
 
-            // Outcome & notes always belong to the latest call.
+            // Outcome & notes belong to the latest call and are only offered once that call has ended.
             const latest = d.calls[d.calls.length - 1];
-            outcomeSection.classList.toggle('d-none', !latest);
+            outcomeSection.classList.toggle('d-none', !latest || onCall);
+            outcomeHint.classList.toggle('d-none', !onCall);
             outcomeFor.textContent = latest ? `(call ${latest.number})` : '';
             outcomeOptions.forEach(o => { o.checked = o.value === d.lastOutcome; });
             notesEl.value = d.lastNotes ?? '';
@@ -218,7 +220,7 @@
             title.textContent = row.getAttribute('aria-label')?.replace('Open details for ', 'Contact ID ') ?? 'Record';
             sub.textContent = '';
             statusBadge.textContent = '';
-            [fieldsTitle, fieldsEl, purged, historyTitle, endButton, againButton, dialButton, outcomeSection].forEach(x => x.classList.add('d-none'));
+            [fieldsTitle, fieldsEl, purged, historyTitle, endButton, againButton, dialButton, outcomeSection, outcomeHint].forEach(x => x.classList.add('d-none'));
             outcomeDirty = false;
             historyEl.replaceChildren();
             loading.classList.remove('d-none');
@@ -249,12 +251,16 @@
             saveOutcomeButton.disabled = false;
         });
 
-        // Unsaved outcome/notes are saved to the current call before it ends or a new call starts.
+        // Ending the call reveals the outcome panel, ready for the caller to fill in.
         endButton.addEventListener('click', async () => {
             endButton.disabled = true;
-            if (outcomeDirty && !(await saveOutcome())) { return; }
-            if (await run('end')) { toast('Call ended'); }
+            if (await run('end')) {
+                toast('Call ended — add the outcome and notes');
+                outcomeSection.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                outcomeSection.focus({ preventScroll: true });
+            }
         });
+        // Unsaved outcome/notes of the ended call are saved before a new call starts.
         againButton.addEventListener('click', async () => {
             againButton.disabled = true;
             if (outcomeDirty && !(await saveOutcome())) { return; }

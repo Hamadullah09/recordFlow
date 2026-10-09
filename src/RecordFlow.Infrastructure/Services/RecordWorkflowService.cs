@@ -236,7 +236,7 @@ public sealed class RecordWorkflowService(
         return ctx;
     }
 
-    /// <summary>Saves the outcome and notes of the record's latest call (during or after the call).</summary>
+    /// <summary>Saves the outcome and notes of the record's latest call, once that call has ended.</summary>
     public async Task<RecordContext> SetCallOutcomeAsync(string userId, string key, CallOutcome? outcome, string? notes, CancellationToken ct = default)
     {
         if (outcome is { } o && !Enum.IsDefined(o)) throw new WorkflowException("Choose a valid call outcome.");
@@ -248,6 +248,7 @@ public sealed class RecordWorkflowService(
         {
             var r = w.FindRecord(key) ?? throw new WorkflowException("Record not found.");
             var call = r.LastCall ?? throw new WorkflowException("Start a call before saving its outcome.");
+            if (call.EndedAtUtc is null) throw new WorkflowException("End the call before saving its outcome.");
             call.Outcome = outcome;
             call.Notes = notes;
             return new RecordContext(w, r, null);
