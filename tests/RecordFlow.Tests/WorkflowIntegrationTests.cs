@@ -106,6 +106,22 @@ public class WorkflowIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Share_email_goes_to_the_given_address_and_mail_failures_explain_themselves()
+    {
+        var key = await ImportAsync();
+        await _workflow.GenerateFormAsync("user-a", key);
+
+        await _workflow.SendShareEmailAsync("user-a", key, "owner@store.test", null, t => $"https://x/f/{t}");
+        Assert.Single(_email.Sent, m => m.To == "owner@store.test");
+
+        _email.Fail = true;
+        var ex = await Assert.ThrowsAsync<WorkflowException>(() =>
+            _workflow.SendShareEmailAsync("user-a", key, "owner@store.test", null, t => $"https://x/f/{t}"));
+        Assert.Contains("SMTP", ex.Message);
+        Assert.Contains("WhatsApp", ex.Message);
+    }
+
+    [Fact]
     public async Task Full_workflow_from_upload_to_payment()
     {
         var key = await ImportAsync();
@@ -446,8 +462,12 @@ public class WorkflowIntegrationTests : IDisposable
     {
         public List<(string To, string Subject)> Sent { get; } = [];
 
+        /// <summary>Simulates a mail server problem (e.g. SMTP not configured).</summary>
+        public bool Fail { get; set; }
+
         public Task SendAsync(string toAddress, string subject, string htmlBody, string textBody, CancellationToken ct = default)
         {
+            if (Fail) throw new InvalidOperationException("Email:Smtp:Host is not configured.");
             Sent.Add((toAddress, subject));
             return Task.CompletedTask;
         }

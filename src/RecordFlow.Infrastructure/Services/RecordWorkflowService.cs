@@ -590,7 +590,16 @@ public sealed class RecordWorkflowService(
         var storeName = ctx.Record.StoreName ?? $"Contact ID {ctx.Record.ContactId}";
 
         var content = EmailTemplates.ShareForm(appOptions.Value.Name, sender.FullName, sender.Company, storeName, note?.Trim(), buildShareUrl(link.Token), link.ExpiresAtUtc);
-        await email.SendAsync(toAddress, content.Subject, content.Html, content.Text, ct);
+        try
+        {
+            await email.SendAsync(toAddress, content.Subject, content.Html, content.Text, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Share email for Contact ID {ContactId} could not be sent.", ctx.Record.ContactId);
+            throw new WorkflowException("The email couldn't be sent — the site's email (SMTP) settings may be missing or wrong. " +
+                                        "You can copy the link or use WhatsApp / SMS instead.");
+        }
 
         var masked = MaskEmail(toAddress);
         await RecordShareChannelAsync(userId, key, $"Email to {masked}", ct);

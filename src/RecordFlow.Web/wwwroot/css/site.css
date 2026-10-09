@@ -310,7 +310,7 @@ a { text-underline-offset: 2px; }
 .share-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; }
 @media (min-width: 576px) { .share-grid { grid-template-columns: repeat(4, 1fr); } }
 .share-btn { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .85rem .5rem; border: 1px solid var(--rf-border); border-radius: 12px; background: #fff; color: var(--rf-text); font-weight: 600; font-size: .9rem; text-decoration: none; }
-.share-btn span { font-size: 1.4rem; line-height: 1; }
+.share-btn span[aria-hidden="true"] { font-size: 1.4rem; line-height: 1; }
 .share-btn:hover, .share-btn:focus-visible { border-color: var(--rf-primary); background: #f5f6ff; color: var(--rf-primary); }
 
 /* Verify */

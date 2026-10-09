@@ -463,19 +463,49 @@
         const loading = q('.share-loading'), ready = q('.share-ready'), errorBox = q('.share-error');
         const linkInput = q('#shareLink'), expiry = q('.share-expiry'), submitted = q('.share-submitted');
         const whatsapp = q('.js-share-whatsapp'), sms = q('.js-share-sms'), nativeBtn = q('.js-share-native');
-        const emailForm = q('.share-email-form');
+        const emailForm = q('.share-email-form'), emailButton = q('.js-share-email'), emailLabel = q('.js-share-email-label');
+        const emailOther = q('.js-share-email-other'), recipientLine = q('.share-recipient');
         let current = null;
 
         const message = url => `Please review and complete the store information for ${store} using this secure link: ${url}`;
         const recordChannel = channel => api(`${endpoint}/share-channel`, 'POST', { channel }).catch(() => { });
+
+        // The recipient is the store owner: read Owner Email / Owner Phone from the form as currently filled in.
+        const fieldValue = key => document.getElementById(`f_${key}`)?.value.trim() ?? '';
+        const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        // U.S. number → "+12175550142" (WhatsApp and SMS need the full international number), else null.
+        const toE164 = v => {
+            let digits = v.replace(/(ext|x).*$/i, '').replace(/\D/g, '');
+            if (digits.length === 11 && digits.startsWith('1')) { digits = digits.slice(1); }
+            return digits.length === 10 && !/^[01]/.test(digits) ? `+1${digits}` : null;
+        };
+        const recipient = () => {
+            const email = fieldValue('OwnerEmail'), phone = fieldValue('OwnerPhone');
+            return { email: isEmail(email) ? email : null, phone: toE164(phone), phoneText: phone };
+        };
+
+        function updateRecipient() {
+            if (!current) { return; }
+            const r = recipient();
+            const text = message(current.url);
+            whatsapp.href = r.phone ? `https://wa.me/${r.phone.slice(1)}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+            sms.href = r.phone ? `sms:${r.phone}?&body=${encodeURIComponent(text)}` : `sms:?&body=${encodeURIComponent(text)}`;
+            emailLabel.textContent = r.email ? 'Email owner' : 'Email';
+            emailButton.title = r.email ? `Send the link to ${r.email} now` : 'Enter an email address';
+            emailOther.classList.toggle('d-none', !r.email);
+            const parts = [r.email, r.phone ? r.phoneText : null].filter(Boolean);
+            recipientLine.textContent = parts.length
+                ? `Sending to the owner: ${parts.join(' · ')}`
+                : 'No Owner Email or Owner Phone on the form yet — fill them in to send directly to the owner.';
+            recipientLine.className = `small mb-2 share-recipient ${parts.length ? '' : 'text-muted'}`;
+        }
 
         function render(data) {
             current = data;
             linkInput.value = data.url;
             expiry.textContent = `Link expires ${data.expires} or when your working session ends.`;
             submitted.classList.toggle('d-none', !data.submitted);
-            whatsapp.href = `https://wa.me/?text=${encodeURIComponent(message(data.url))}`;
-            sms.href = `sms:?&body=${encodeURIComponent(message(data.url))}`;
+            updateRecipient();
             nativeBtn.classList.toggle('d-none', !navigator.share);
             loading.classList.add('d-none');
             errorBox.classList.add('d-none');
@@ -495,7 +525,10 @@
             }
         }
 
-        shareModal.addEventListener('show.bs.modal', () => { if (!current) { load(false); } });
+        shareModal.addEventListener('show.bs.modal', () => {
+            emailForm.classList.add('d-none');
+            if (current) { updateRecipient(); } else { load(false); }
+        });
 
         q('.js-copy-link').addEventListener('click', async () => {
             try { await navigator.clipboard.writeText(linkInput.value); }
@@ -511,24 +544,34 @@
                 recordChannel('native');
             } catch { /* user dismissed the share sheet */ }
         });
-        q('.js-share-email-toggle').addEventListener('click', () => {
-            emailForm.classList.toggle('d-none');
-            if (!emailForm.classList.contains('d-none')) { q('#shareEmailTo').focus(); }
+        async function sendEmail(to, note, button) {
+            button.disabled = true;
+            try {
+                await api(`${endpoint}/share-email`, 'POST', { email: to, message: note });
+                toast(`Email sent to ${to}`);
+                return true;
+            } catch (err) { handleApiError(err); return false; }
+            finally { button.disabled = false; }
+        }
+        const showEmailForm = () => {
+            emailForm.classList.remove('d-none');
+            q('#shareEmailTo').focus();
+        };
+        // With an Owner Email on the form, "Email owner" sends the link right away; otherwise ask for an address.
+        emailButton.addEventListener('click', () => {
+            const r = recipient();
+            if (r.email) { sendEmail(r.email, '', emailButton); } else { showEmailForm(); }
         });
+        emailOther.addEventListener('click', showEmailForm);
         emailForm.addEventListener('submit', async e => {
             e.preventDefault();
             const to = q('#shareEmailTo');
             if (!to.checkValidity()) { to.classList.add('is-invalid'); return; }
             to.classList.remove('is-invalid');
-            const button = emailForm.querySelector('button[type="submit"]');
-            button.disabled = true;
-            try {
-                await api(`${endpoint}/share-email`, 'POST', { email: to.value, message: q('#shareEmailNote').value });
-                toast(`Email sent to ${to.value}`);
+            if (await sendEmail(to.value, q('#shareEmailNote').value, emailForm.querySelector('button[type="submit"]'))) {
                 emailForm.reset();
                 emailForm.classList.add('d-none');
-            } catch (err) { handleApiError(err); }
-            finally { button.disabled = false; }
+            }
         });
         q('.js-regenerate').addEventListener('click', async () => {
             if (!window.confirm('Create a new link? The current link will stop working immediately.')) { return; }

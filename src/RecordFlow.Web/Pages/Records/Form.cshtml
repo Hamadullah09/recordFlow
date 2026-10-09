@@ -139,12 +139,15 @@
                     </div>
                     <p class="small text-muted share-expiry mb-3"></p>
 
-                    <div class="share-grid mb-3">
-                        <button type="button" class="share-btn js-share-email-toggle"><span aria-hidden="true">&#9993;</span>Email</button>
+                    @* The recipient is the store owner: Owner Email and Owner Phone from this form (including unsaved edits). *@
+                    <p class="small mb-2 share-recipient"></p>
+                    <div class="share-grid mb-2">
+                        <button type="button" class="share-btn js-share-email"><span aria-hidden="true">&#9993;</span><span class="js-share-email-label">Email</span></button>
                         <a class="share-btn js-share-whatsapp" target="_blank" rel="noopener noreferrer" href="#"><span aria-hidden="true">&#128172;</span>WhatsApp</a>
                         <a class="share-btn js-share-sms" href="#"><span aria-hidden="true">&#128241;</span>Text (SMS)</a>
                         <button type="button" class="share-btn js-share-native d-none"><span aria-hidden="true">&#8599;</span>More…</button>
                     </div>
+                    <p class="small mb-3"><button type="button" class="btn btn-link btn-sm p-0 d-none js-share-email-other">Send the email to a different address</button></p>
 
                     <form class="share-email-form d-none border rounded p-3 mb-3" novalidate>
                         <div class="mb-2">
