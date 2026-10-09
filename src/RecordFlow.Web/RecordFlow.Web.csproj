@@ -17,6 +17,18 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Shared hosting (myASP.NET): workstation GC keeps the app's memory footprint small. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Managed SNI: the native SQL Client network DLL isn't usable on the shared host. -->
+    <RuntimeHostConfigurationOption Include="Switch.Microsoft.Data.SqlClient.UseManagedNetworkingOnWindows" Value="true" Trim="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Development settings (local DB, dev admin seed) must never be deployed. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
 </Project>

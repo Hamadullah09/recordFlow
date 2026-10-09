@@ -1,0 +1,150 @@
+# CI/CD for RecordFlow
+#  - Every push / pull request: restore, build, run all tests, publish.
+#  - Push to main (or a manual run): deploy the published app to myASP.NET with Web Deploy,
+#    then check https://recordflow.sma-techno.net/health.
+#
+# One-time setup (GitHub → Settings → Secrets and variables → Actions):
+#   Variables: WEBDEPLOY_SERVER   win8238.site4now.net        (myASP.NET control panel → site → VS Webdeploy)
+#              WEBDEPLOY_SITE     smatechnologies-001-site15
+#   Secrets:   WEBDEPLOY_USERNAME the Web Deploy user name (kept secret: Actions logs are public)
+#              WEBDEPLOY_PASSWORD the Web Deploy password
+#
+# Server-only files are never touched: appsettings.Production.json (connection string, seed, keys)
+# and the logs folder are skipped, and nothing on the server is deleted (DoNotDeleteRule).
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SITE_URL: https://recordflow.sma-techno.net
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore RecordFlow.sln
+
+      - name: Build
+        run: dotnet build RecordFlow.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test RecordFlow.sln -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 7
+
+      - name: Publish
+        run: dotnet publish src/RecordFlow.Web/RecordFlow.Web.csproj -c Release --no-build -o publish
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: recordflow-web
+          path: publish
+          retention-days: 7
+
+  deploy:
+    name: Deploy to myASP.NET
+    needs: build-test
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    # Never run two deployments at the same time; a newer push waits for the running one.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://recordflow.sma-techno.net
+    steps:
+      - name: Download app
+        uses: actions/download-artifact@v4
+        with:
+          name: recordflow-web
+          path: publish
+
+      - name: Check deployment settings
+        shell: pwsh
+        env:
+          WEBDEPLOY_SERVER: ${{ vars.WEBDEPLOY_SERVER }}
+          WEBDEPLOY_SITE: ${{ vars.WEBDEPLOY_SITE }}
+          WEBDEPLOY_USERNAME: ${{ secrets.WEBDEPLOY_USERNAME }}
+          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}
+        run: |
+          $missing = 'WEBDEPLOY_SERVER','WEBDEPLOY_SITE','WEBDEPLOY_USERNAME','WEBDEPLOY_PASSWORD' |
+            Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          if ($missing) { Write-Error "Missing repository variables/secrets: $($missing -join ', ')"; exit 1 }
+
+      - name: Install Web Deploy
+        shell: pwsh
+        run: |
+          $msdeploy = 'C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe'
+          if (-not (Test-Path $msdeploy)) { choco install webdeploy -y --no-progress | Out-Null }
+          if (-not (Test-Path $msdeploy)) { Write-Error 'msdeploy.exe not found'; exit 1 }
+          "MSDEPLOY=$msdeploy" >> $env:GITHUB_ENV
+
+      - name: Deploy (Web Deploy)
+        shell: pwsh
+        env:
+          WEBDEPLOY_SERVER: ${{ vars.WEBDEPLOY_SERVER }}
+          WEBDEPLOY_SITE: ${{ vars.WEBDEPLOY_SITE }}
+          WEBDEPLOY_USERNAME: ${{ secrets.WEBDEPLOY_USERNAME }}
+          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}
+        run: |
+          $site = $env:WEBDEPLOY_SITE
+          $endpoint = "https://$($env:WEBDEPLOY_SERVER):8172/msdeploy.axd?site=$site"
+          $source = Join-Path $PWD 'publish'
+          $arguments = @(
+            '-verb:sync',
+            "-source:contentPath=$source",
+            "-dest:contentPath=$site,computerName=$endpoint,userName=$($env:WEBDEPLOY_USERNAME),password=$($env:WEBDEPLOY_PASSWORD),authType=Basic",
+            '-allowUntrusted',
+            # app_offline.htm while files are copied, so IIS releases the DLLs.
+            '-enableRule:AppOffline',
+            # Keep everything on the server that isn't part of the build (config, logs, backups).
+            '-enableRule:DoNotDeleteRule',
+            '-skip:objectName=filePath,absolutePath=appsettings\.Production\.json$',
+            '-skip:objectName=dirPath,absolutePath=\\logs$',
+            '-retryAttempts:3',
+            '-retryInterval:5000'
+          )
+          & $env:MSDEPLOY @arguments
+          if ($LASTEXITCODE -ne 0) { Write-Error "Web Deploy failed (exit $LASTEXITCODE)"; exit $LASTEXITCODE }
+
+      - name: Health check
+        shell: pwsh
+        run: |
+          # The first request after a deploy starts the app (and applies database migrations), so allow a few minutes.
+          $deadline = (Get-Date).AddMinutes(4)
+          do {
+            try {
+              $r = Invoke-WebRequest "$env:SITE_URL/health" -UseBasicParsing -TimeoutSec 60
+              if ($r.StatusCode -eq 200) { "Site is healthy: $($r.Content)"; exit 0 }
+            } catch { "Not ready yet: $($_.Exception.Message)" }
+            Start-Sleep -Seconds 15
+          } while ((Get-Date) -lt $deadline)
+          Write-Error "$env:SITE_URL/health did not return 200 after deployment. Check logs\stdout_*.log on the server."
+          exit 1

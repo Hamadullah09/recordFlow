@@ -107,6 +107,31 @@ A `Dockerfile` is provided (listens on port 8080, runs as non-root). Terminate T
 `ReverseProxy:KnownProxies` (or configure `ForwardedHeadersOptions.KnownNetworks`) so the app sees the original scheme,
 and point liveness/readiness probes at `/health`.
 
+### Continuous deployment (GitHub Actions → myASP.NET)
+
+`.github/workflows/ci-cd.yml` builds and tests every push and pull request. A push to `main` that passes is
+published and deployed to myASP.NET with Web Deploy, then `https://recordflow.sma-techno.net/health` is checked.
+You can also run it by hand from the repository's **Actions** tab (*CI/CD → Run workflow*).
+
+One-time setup:
+
+1. myASP.NET control panel → Websites → recordflow → ⋯ → **VS Webdeploy** → *Turn on*.
+2. GitHub → repository → Settings → Secrets and variables → Actions:
+   - Variables: `WEBDEPLOY_SERVER` = `win8238.site4now.net`, `WEBDEPLOY_SITE` = `smatechnologies-001-site15`
+   - Secrets: `WEBDEPLOY_USERNAME`, `WEBDEPLOY_PASSWORD` (from the VS Webdeploy dialog)
+
+What a deployment does and doesn't touch:
+
+- Uploads the new build with `app_offline.htm` in place, so IIS releases the DLLs while files are copied.
+- **Never** overwrites `appsettings.Production.json` (connection string, keys, seed) or the `logs` folder, and never
+  deletes files that aren't part of the build. Keep all server-specific settings in `appsettings.Production.json`;
+  `appsettings.json` is replaced by the repository copy on every deploy.
+- Database migrations run when the app starts (`Database:MigrateOnStartup = true` on the server).
+- `appsettings.Development.json` is never published.
+
+If a deployment's health check fails, open `logs\stdout_*.log` on the server (enable `stdoutLogEnabled` in
+`web.config` temporarily if no log is written) and roll back by re-running the last good workflow run.
+
 ## 5. Email
 
 Use a transactional email provider and authenticate the From domain (SPF, DKIM, DMARC) so confirmation, reset and
